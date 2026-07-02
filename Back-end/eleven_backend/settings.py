@@ -10,13 +10,22 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # ---- SECURITY -------------------------------------------------------------
-# Replace this before deploying. Keep it out of version control in real use
-# (e.g. load from an environment variable).
-SECRET_KEY = 'django-insecure-CHANGE-ME-before-deploying'
+# In production (Render) these come from environment variables you set in
+# the Render dashboard. Locally, if you don't set them, these fallbacks let
+# `runserver` keep working exactly as before.
+SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-CHANGE-ME-before-deploying')
 
-DEBUG = True  # Set False in production
+DEBUG = os.environ.get('DEBUG', 'True') == 'True'
 
-ALLOWED_HOSTS = ['*']  # Tighten this to your real domain in production
+ALLOWED_HOSTS = []
+# Render sets this automatically to your service's *.onrender.com hostname.
+RENDER_EXTERNAL_HOSTNAME = os.environ.get('RENDER_EXTERNAL_HOSTNAME')
+if RENDER_EXTERNAL_HOSTNAME:
+    ALLOWED_HOSTS.append(RENDER_EXTERNAL_HOSTNAME)
+# Comma-separated list for your own domain(s), e.g. "api.yoursite.com".
+ALLOWED_HOSTS += [h.strip() for h in os.environ.get('ALLOWED_HOSTS', '').split(',') if h.strip()]
+if not ALLOWED_HOSTS:
+    ALLOWED_HOSTS = ['*']  # local dev only — always set ALLOWED_HOSTS explicitly in production
 
 # ---- APPS -------------------------------------------------------------
 INSTALLED_APPS = [
@@ -35,6 +44,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',  # serves static files in production
     'corsheaders.middleware.CorsMiddleware',   # must be high in the list
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -65,13 +75,16 @@ TEMPLATES = [
 WSGI_APPLICATION = 'eleven_backend.wsgi.application'
 
 # ---- DATABASE -------------------------------------------------------------
-# SQLite to start — zero setup. Swap to Postgres for production
-# (see README for the connection string change).
+# SQLite locally (zero setup). On Render, set the DATABASE_URL environment
+# variable to your managed Postgres instance's "Internal Database URL" and
+# this switches over automatically — no code change needed.
+import dj_database_url
+
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
+    'default': dj_database_url.config(
+        default=f'sqlite:///{BASE_DIR / "db.sqlite3"}',
+        conn_max_age=600,
+    )
 }
 
 AUTH_PASSWORD_VALIDATORS = [
@@ -87,6 +100,15 @@ USE_I18N = True
 USE_TZ = True
 
 STATIC_URL = 'static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+STORAGES = {
+    'default': {
+        'BACKEND': 'django.core.files.storage.FileSystemStorage',
+    },
+    'staticfiles': {
+        'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage',
+    },
+}
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # ---- MEDIA (product images) ------------------------------------------------
@@ -102,11 +124,12 @@ REST_FRAMEWORK = {
 
 # ---- CORS -------------------------------------------------------------
 # Allow your frontend (static site) to call this API from the browser.
-# Add your real domain here once deployed, e.g. "https://sahilmuhd.com".
+# Add your real domain via the CORS_ALLOWED_ORIGINS env var on Render,
+# e.g. "https://eleven-frontend.onrender.com,https://sahilmuhd.com"
 CORS_ALLOWED_ORIGINS = [
     'http://localhost:5500',
     'http://127.0.0.1:5500',
     'http://localhost:3000',
-]
+] + [o.strip() for o in os.environ.get('CORS_ALLOWED_ORIGINS', '').split(',') if o.strip()]
 # While developing locally you can use this instead of the allowlist above:
 # CORS_ALLOW_ALL_ORIGINS = True
