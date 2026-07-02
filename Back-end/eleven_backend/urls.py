@@ -8,5 +8,7 @@ urlpatterns = [
     path('api/', include('shop.urls')),
 ]
 
-if settings.DEBUG:
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+# Serve product images even with DEBUG=False. Django isn't built to do this
+# at real scale (a CDN/S3 would be the "right" answer for a bigger store),
+# but for this catalog's size it's simple, free, and works reliably on Render.
+urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
