@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>About — ELEVEN</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/about.css">
+<script src="eleven-cart.js"></script>
+<script src="eleven-real-products.js"></script>
+<script src="js/eleven-api.js"></script>
+</head>
+<body>
+
+<nav>
+  <a href="index.html" class="nav-logo" style="text-decoration:none; color:var(--chalk);">ELEVEN</a>
+  <ul class="nav-links">
+    <li><a href="index.html" class="">Home</a></li>
+    <li><a href="about.html" class="active">About</a></li>
+    <li><a href="new-arrivals.html" class="">New Arrivals</a></li>
+    <li><a href="shop.html" class="">Shop</a></li>
+    <li><a href="contact.html" class="">Contact</a></li>
+    <li><a href="track.html" class="">Track Order</a></li>
+  </ul>
+  <div class="nav-icons nav-desktop-icons">
+    <button aria-label="Search" onclick="window.location.href='search.html'"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></button>
+    <button aria-label="Wishlist" onclick="window.location.href='wishlist.html'"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></button>
+    <button aria-label="Cart" onclick="window.location.href='cart.html'" style="position:relative;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg><span class="cart-count" style="display:none; position:absolute; top:-4px; right:-4px; background:var(--blue); color:var(--chalk); font-size:9px; width:16px; height:16px; border-radius:50%; align-items:center; justify-content:center; font-family:Inter,sans-serif; font-weight:700;"></span></button>
+  </div>
+  
+<button class="hamburger" id="hamburger" aria-label="Menu" onclick="toggleMenu()">
+  <span></span><span></span><span></span>
+</button>
+
+</nav>
+
+<div class="mobile-menu" id="mobileMenu">
+  <a href="index.html" class="">Home</a>
+    <a href="about.html" class="active">About</a>
+    <a href="new-arrivals.html" class="">New Arrivals</a>
+    <a href="shop.html" class="">Shop</a>
+    <a href="contact.html" class="">Contact</a>
+    <a href="track.html" class="">Track Order</a>
+  <a href="search.html">Search</a>
+    <a href="wishlist.html">Wishlist</a>
+</div>
+
+<!-- HERO -->
+<div class="about-hero">
+  <div class="bg-word">ELEVEN</div>
+  <div class="hero-eyebrow">Est. Kammanahalli, Bangalore</div>
+  <h1 class="display">An original<br>footwear label<br>built different.</h1>
+  <div class="hero-bottom">
+    <p>We didn't set out to make another sneaker brand. We set out to prove that something genuinely new could come out of Bangalore — designed from scratch, built for real streets, and sold without the hype tax.</p>
+    <div class="hero-stats">
+      <div class="stat">
+        <div class="num"><span class="count-num" data-target="2021">2021</span></div>
+        <div class="lbl">Founded</div>
+      </div>
+      <div class="stat">
+        <div class="num"><span class="count-num" data-target="11">11</span></div>
+        <div class="lbl">Silhouettes</div>
+      </div>
+      <div class="stat">
+        <div class="num">∞</div>
+        <div class="lbl">Blank pages</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ORIGIN -->
+<div class="origin-section">
+  <div class="origin-left">
+    <div class="eyebrow">Where it started</div>
+    <h2 class="display">Kammanahalli,<br>2021.</h2>
+    <p>ELEVEN started in a 200 sq ft room in Kammanahalli with a sketchbook, a sewing machine borrowed from a tailor down the road, and one question: <strong>why does every Indian sneaker look like a cheaper version of something else?</strong></p>
+    <p>Our founder had spent years in the footwear trade — sourcing materials, visiting factories, watching trends arrive from abroad and get copied at cost. The industry ran on imitation. ELEVEN was started to break that habit.</p>
+    <p>The first silhouette took four months. The second took three. By the time we had five, we had a language — <strong>clean geometry, deliberate proportions, materials chosen for feel not label value.</strong> That's still the standard we design to.</p>
+    <a href="shop.html" class="btn primary" style="margin-top:16px;">See the collection</a>
+  </div>
+  <div class="origin-right">
+    <svg viewBox="0 0 500 340" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <!-- Stylised sneaker outline, editorial -->
+      <path d="M40 250 C40 225 80 210 150 203 C230 195 300 170 355 142 C400 120 440 115 472 122 C500 128 518 148 516 172 C513 195 494 215 460 228 C390 252 270 268 160 270 C100 270 40 265 40 250 Z" fill="none" stroke="rgba(201,163,104,0.25)" stroke-width="1.5"/>
+      <path d="M40 250 C40 225 80 210 150 203 C230 195 300 170 355 142 C400 120 440 115 472 122 C500 128 518 148 516 172 C513 195 494 215 460 228 C390 252 270 268 160 270 C100 270 40 265 40 250 Z" fill="rgba(35,35,37,0.6)"/>
+      <!-- laces -->
+      <path d="M150 203 C170 180 195 165 225 158 M270 195 C295 175 320 162 348 155" stroke="rgba(199,204,209,0.3)" stroke-width="1.2" fill="none"/>
+      <!-- toe box detail -->
+      <path d="M355 142 C370 165 378 190 375 215" stroke="rgba(199,204,209,0.2)" stroke-width="1" fill="none"/>
+      <!-- sole line -->
+      <path d="M80 255 C170 262 340 260 460 248 C490 244 510 236 516 226" stroke="rgba(199,204,209,0.15)" stroke-width="1" fill="none"/>
+      <!-- ELEVEN label -->
+      <text x="250" y="232" text-anchor="middle" font-family="'Bebas Neue', sans-serif" font-size="11" letter-spacing="6" fill="rgba(201,163,104,0.5)">ELEVEN</text>
+    </svg>
+  </div>
+</div>
+
+<!-- PILLARS -->
+<div class="pillars">
+  <div class="pillars-head">
+    <div class="eyebrow">What we stand for</div>
+    <h2 class="display">Three things we don't compromise on</h2>
+  </div>
+  <div class="pillars-grid">
+    <div class="pillar">
+      <span class="num">01</span>
+      <h3 class="display">Original by design</h3>
+      <p>Every silhouette starts from a blank sketchpad. No reskins, no "inspired by" — just ELEVEN's own design language, developed over four years and eleven styles. If it looks like something else, we scrap it and start again.</p>
+    </div>
+    <div class="pillar">
+      <span class="num">02</span>
+      <h3 class="display">Built, not assembled</h3>
+      <p>Materials are chosen for how they perform and age, not how they look in a product shot. Construction is tested for daily street wear, not shelf life. Every pair goes through the same standards, from our everyday slides to our limited trainers.</p>
+    </div>
+    <div class="pillar">
+      <span class="num">03</span>
+      <h3 class="display">Honest pricing</h3>
+      <p>We don't price for hype. We price for what the shoe costs to make well, plus a margin that keeps us running. No artificial scarcity, no limited-edition markups on regular stock. The price on the tag is what we think it's genuinely worth.</p>
+    </div>
+  </div>
+</div>
+
+<!-- PROCESS -->
+<div class="process-section">
+  <div class="process-head">
+    <div class="eyebrow">How we work</div>
+    <h2 class="display">From blank page to your doorstep</h2>
+  </div>
+  <div class="process-steps">
+    <div class="process-step">
+      <div class="bar"></div>
+      <div class="step-n">Step 01</div>
+      <h4 class="display">Sketch</h4>
+      <p>Every pair starts as pencil on paper. No 3D tools until the shape is right by hand. This typically takes 2–6 weeks per silhouette.</p>
+    </div>
+    <div class="process-step">
+      <div class="bar"></div>
+      <div class="step-n">Step 02</div>
+      <h4 class="display">Sample</h4>
+      <p>Pattern-making and first samples done with our production partner near Varthur. Usually three rounds of samples before we're satisfied.</p>
+    </div>
+    <div class="process-step">
+      <div class="bar"></div>
+      <div class="step-n">Step 03</div>
+      <h4 class="display">Test</h4>
+      <p>Wear-tested by the team for at least 30 days before any launch. We look for comfort degradation, sole adhesion, and whether the silhouette holds its shape.</p>
+    </div>
+    <div class="process-step">
+      <div class="bar"></div>
+      <div class="step-n">Step 04</div>
+      <h4 class="display">Ship</h4>
+      <p>Dispatched from Bangalore. Every order packed by hand. Nationwide delivery with live tracking, from cutting room to doorstep.</p>
+    </div>
+  </div>
+</div>
+
+<!-- NUMBERS -->
+<div class="numbers-band">
+  <div class="number-item">
+    <div class="big"><span class="count-num" data-target="11">11</span><span> styles</span></div>
+    <div class="desc">Original silhouettes designed in-house since 2021</div>
+  </div>
+  <div class="number-item">
+    <div class="big"><span class="count-num" data-target="4">4</span><span> years</span></div>
+    <div class="desc">Building and refining the ELEVEN design language</div>
+  </div>
+  <div class="number-item">
+    <div class="big"><span class="count-num" data-target="0">0</span><span> reskins</span></div>
+    <div class="desc">Every design starts from a blank page, no exceptions</div>
+  </div>
+  <div class="number-item">
+    <div class="big"><span class="count-num" data-target="1">1</span><span> city</span></div>
+    <div class="desc">Designed, sampled, and shipped from Bangalore</div>
+  </div>
+</div>
+
+<!-- CTA -->
+<div class="cta-band">
+  <div class="eyebrow">Ready?</div>
+  <h2 class="display">Find your pair.</h2>
+  <p>Eleven original silhouettes. No clones. Shipped from Bangalore to anywhere in India.</p>
+  <div class="cta-buttons">
+    <a href="shop.html" class="btn primary">Shop the collection</a>
+    <a href="new-arrivals.html" class="btn">New arrivals</a>
+    <a href="contact.html" class="btn">Get in touch</a>
+  </div>
+</div>
+
+<footer>
+  <div class="footer-top">
+    <div class="footer-brand">
+      <div class="display">ELEVEN</div>
+      <p>Built different. An original footwear label out of Bangalore, designing sneakers for the street, not the showroom.</p>
+    </div>
+    <div class="footer-col">
+      <h5>Shop</h5>
+      <a href="new-arrivals.html">New arrivals</a>
+      <a href="shop.html">Best sellers</a>
+      <a href="shop.html">Limited edition</a>
+      <a href="shop.html">Men</a>
+      <a href="shop.html">Women</a>
+    </div>
+    <div class="footer-col">
+      <h5>Support</h5>
+      <a href="contact.html">Shipping policy</a>
+      <a href="contact.html">Return policy</a>
+      <a href="contact.html">Order tracking</a>
+      <a href="contact.html">FAQ</a>
+      <a href="contact.html">Contact</a>
+    </div>
+    <div class="footer-col">
+      <h5>Connect</h5>
+      <a href="https://instagram.com/elevenfootwear" target="_blank" rel="noopener">Instagram</a>
+      <a href="https://wa.me/917560943996" target="_blank" rel="noopener">WhatsApp</a>
+      <a href="mailto:sahilmuhd123@gmail.com">Email</a>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <span>© 2026 ELEVEN Footgear Hub. All rights reserved.</span>
+    <span class="mono">Kammanahalli, Bangalore</span>
+    <span class="mono">Created by <a href="https://sahilmuhd.com/" target="_blank" rel="noopener" style="color:inherit;">sahilmuhd.com</a></span>
+  </div>
+</footer>
+
+<script src="js/about.js"></script>
+
+</body>
+</html>
