@@ -112,7 +112,8 @@ class OrderViewSet(viewsets.ModelViewSet):
         # unpaid order behind — delete it and tell the customer to retry.
         try:
             rp_order = create_razorpay_order(order.total * 100, order.order_id)  # amount in paise
-        except RazorpayError:
+        except RazorpayError as e:
+            print('ELEVEN: Razorpay order creation failed ->', e)  # shows up in the runserver terminal
             order.delete()
             return Response(
                 {'detail': 'Could not start payment right now. Please try again in a moment.'},
