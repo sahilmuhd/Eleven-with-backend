@@ -111,9 +111,9 @@ class OrderSerializer(serializers.ModelSerializer):
             'order_id', 'customer_name', 'customer_phone', 'customer_email',
             'address_line1', 'address_line2', 'city', 'state', 'pincode',
             'subtotal', 'discount', 'total', 'coupon_code', 'status',
-            'created_at', 'items',
+            'payment_status', 'created_at', 'items',
         ]
-        read_only_fields = ['order_id', 'status', 'created_at']
+        read_only_fields = ['order_id', 'status', 'payment_status', 'created_at']
 
 
 class OrderCreateSerializer(serializers.Serializer):
@@ -165,6 +165,16 @@ class CartSerializer(serializers.Serializer):
 class WishlistSerializer(serializers.Serializer):
     """What GET/PUT /api/wishlist/ returns and accepts — just a list of SKUs."""
     skus = serializers.ListField(child=serializers.CharField(), allow_empty=True)
+
+
+class VerifyPaymentSerializer(serializers.Serializer):
+    """What checkout.js POSTs right after Razorpay's widget reports success —
+    the signature is what proves the payment is genuine, not just the
+    presence of a payment_id (a browser could fake that field alone)."""
+    order_id = serializers.CharField()
+    razorpay_order_id = serializers.CharField()
+    razorpay_payment_id = serializers.CharField()
+    razorpay_signature = serializers.CharField()
 
 
 class TrackOrderSerializer(serializers.Serializer):

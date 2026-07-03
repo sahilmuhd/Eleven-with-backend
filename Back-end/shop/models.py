@@ -105,6 +105,11 @@ class Order(models.Model):
         ('delivered', 'Delivered'),
         ('cancelled', 'Cancelled'),
     ]
+    PAYMENT_STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('paid', 'Paid'),
+        ('failed', 'Failed'),
+    ]
 
     order_id = models.CharField(max_length=20, unique=True, default=generate_order_id, editable=False)
 
@@ -135,6 +140,16 @@ class Order(models.Model):
     coupon_code = models.CharField(max_length=40, blank=True)
 
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='placed')
+
+    # Razorpay integration. The order row is created up-front (with
+    # payment_status='pending') so we have an order_id/receipt to hand
+    # Razorpay when creating its order; it only flips to 'paid' after the
+    # signature is verified server-side in verify_payment_view — never
+    # trust the browser's word alone that a payment succeeded.
+    payment_status = models.CharField(max_length=20, choices=PAYMENT_STATUS_CHOICES, default='pending')
+    razorpay_order_id = models.CharField(max_length=64, blank=True)
+    razorpay_payment_id = models.CharField(max_length=64, blank=True)
+    razorpay_signature = models.CharField(max_length=128, blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

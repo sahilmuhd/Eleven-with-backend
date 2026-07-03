@@ -138,21 +138,81 @@ async function placeOrder() {
   } catch (err) {
     console.warn('ELEVEN: order could not be placed.', err);
     showOrderError('Sorry, we could not place your order. Please check your details and try again.');
-    if (placeBtn) { placeBtn.disabled = false; placeBtn.textContent = 'Place order'; }
+    if (placeBtn) { placeBtn.disabled = false; placeBtn.textContent = 'Proceed to payment'; }
     return;
   }
 
-  // Save full snapshot for the confirmation page.
-  localStorage.setItem('eleven_order_id',       order.order_id);
-  localStorage.setItem('eleven_order_phone',    phone);
-  localStorage.setItem('eleven_order_snapshot', JSON.stringify(cart));
-  localStorage.setItem('eleven_order_subtotal', subtotal);
-  localStorage.setItem('eleven_order_discount', discount);
-  localStorage.setItem('eleven_order_total_raw', total);
-  localStorage.setItem('eleven_order_coupon',   code || '');
-  ELEVEN.clearCart(); // also clears any applied discount/coupon
+  // Order is saved (payment_status: pending) — now open Razorpay's widget
+  // to actually collect payment. Nothing is considered "placed" from the
+  // customer's point of view, and the cart isn't cleared, until payment is
+  // verified below.
+  openRazorpayCheckout(order, { name, email, phone, cart, subtotal, discount, total, code });
+}
 
-  window.location.href = 'confirmation.html';
+function openRazorpayCheckout(order, ctx) {
+  const placeBtn = document.getElementById('placeOrderBtn');
+  if (typeof Razorpay === 'undefined' || !order.razorpay) {
+    showOrderError('Payment could not be started. Please refresh and try again.');
+    if (placeBtn) { placeBtn.disabled = false; placeBtn.textContent = 'Proceed to payment'; }
+    return;
+  }
+
+  const rzp = new Razorpay({
+    key: order.razorpay.key_id,
+    amount: order.razorpay.amount,
+    currency: order.razorpay.currency,
+    order_id: order.razorpay.razorpay_order_id,
+    name: 'ELEVEN',
+    description: 'Order ' + order.order_id,
+    prefill: { name: ctx.name, email: ctx.email, contact: ctx.phone },
+    theme: { color: '#2F6FED' },
+    handler: async function (response) {
+      if (placeBtn) placeBtn.textContent = 'Confirming payment…';
+      try {
+        await verifyElevenPayment({
+          order_id: order.order_id,
+          razorpay_order_id: response.razorpay_order_id,
+          razorpay_payment_id: response.razorpay_payment_id,
+          razorpay_signature: response.razorpay_signature,
+        });
+      } catch (err) {
+        console.warn('ELEVEN: payment verification failed.', err);
+        showOrderError(
+          'Payment went through but we could not confirm it automatically. ' +
+          'Please contact us with your order ID: ' + order.order_id
+        );
+        if (placeBtn) { placeBtn.disabled = false; placeBtn.textContent = 'Proceed to payment'; }
+        return;
+      }
+
+      localStorage.setItem('eleven_order_id',        order.order_id);
+      localStorage.setItem('eleven_order_phone',     ctx.phone);
+      localStorage.setItem('eleven_order_snapshot',  JSON.stringify(ctx.cart));
+      localStorage.setItem('eleven_order_subtotal',  ctx.subtotal);
+      localStorage.setItem('eleven_order_discount',  ctx.discount);
+      localStorage.setItem('eleven_order_total_raw', ctx.total);
+      localStorage.setItem('eleven_order_coupon',    ctx.code || '');
+      ELEVEN.clearCart(); // also clears any applied discount/coupon
+      window.location.href = 'confirmation.html';
+    },
+    modal: {
+      // Customer closed the Razorpay popup without paying. The order row
+      // already exists with payment_status 'pending' — nothing lost, they
+      // can just try again.
+      ondismiss: function () {
+        showOrderError('Payment was not completed. You can try again whenever you\'re ready.');
+        if (placeBtn) { placeBtn.disabled = false; placeBtn.textContent = 'Proceed to payment'; }
+      }
+    }
+  });
+
+  rzp.on('payment.failed', function (response) {
+    const reason = (response && response.error && response.error.description) || 'please try again.';
+    showOrderError('Payment failed: ' + reason);
+    if (placeBtn) { placeBtn.disabled = false; placeBtn.textContent = 'Proceed to payment'; }
+  });
+
+  rzp.open();
 }
 
 document.addEventListener('DOMContentLoaded', () => {

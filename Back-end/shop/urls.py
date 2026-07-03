@@ -4,7 +4,7 @@ from rest_framework.routers import DefaultRouter
 from .views import (
     ProductViewSet, OrderViewSet, track_order,
     register_view, login_view, me_view, my_orders_view,
-    cart_view, wishlist_view,
+    cart_view, wishlist_view, verify_payment_view,
 )
 
 router = DefaultRouter()
@@ -12,6 +12,9 @@ router.register('products', ProductViewSet, basename='product')
 router.register('orders', OrderViewSet, basename='order')
 
 urlpatterns = [
+    # Must come before the router include below — otherwise the router's
+    # orders/<pk>/ pattern would swallow this as a detail lookup first.
+    path('orders/verify-payment/', verify_payment_view, name='verify-payment'),
     path('', include(router.urls)),
     path('track/', track_order, name='track-order'),
     path('auth/register/', register_view, name='auth-register'),

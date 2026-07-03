@@ -83,6 +83,24 @@ async function submitElevenOrder(payload){
   return await res.json();
 }
 
+// Called right after Razorpay's checkout widget reports a successful
+// payment, so the backend can verify the signature before marking the
+// order paid. See shop/views.py verify_payment_view for why this step
+// can't be skipped — a browser alone can't be trusted to say "I paid".
+async function verifyElevenPayment(payload){
+  const res = await fetch(ELEVEN_API_BASE + '/orders/verify-payment/', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+  if(!res.ok){
+    let detail = 'Payment could not be verified (HTTP ' + res.status + ')';
+    try { detail = JSON.stringify(await res.json()); } catch(e){ /* ignore */ }
+    throw new Error(detail);
+  }
+  return await res.json();
+}
+
 /* Looks up a real order's status for the "track my order" flow. */
 async function trackElevenOrder(orderId, phone){
   const res = await fetch(ELEVEN_API_BASE + '/track/', {

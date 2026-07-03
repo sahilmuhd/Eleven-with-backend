@@ -17,6 +17,13 @@ SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-CHANGE-ME-before-depl
 
 DEBUG = os.environ.get('DEBUG', 'True') == 'True'
 
+# Razorpay — set these as real environment variables (Render dashboard, or
+# a local .env) once you have API keys. Left blank here on purpose: never
+# hardcode secrets in settings.py. KEY_ID is not sensitive (it's sent to
+# the browser to open the checkout widget); KEY_SECRET must stay server-side.
+RAZORPAY_KEY_ID = os.environ.get('RAZORPAY_KEY_ID', '')
+RAZORPAY_KEY_SECRET = os.environ.get('RAZORPAY_KEY_SECRET', '')
+
 ALLOWED_HOSTS = []
 # Render sets this automatically to your service's *.onrender.com hostname.
 RENDER_EXTERNAL_HOSTNAME = os.environ.get('RENDER_EXTERNAL_HOSTNAME')

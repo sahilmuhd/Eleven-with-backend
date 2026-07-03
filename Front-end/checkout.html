@@ -13,6 +13,7 @@
 <script src="js/eleven-config.js"></script>
 <script src="js/eleven-api.js"></script>
 <script src="js/eleven-auth.js"></script>
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
 </head>
 <body>
 
@@ -108,7 +109,7 @@
       <span class="field-error" id="err-pincode">Enter a valid 6-digit PIN code.</span>
     </div>
 
-    <button class="btn-checkout full" id="placeOrderBtn" onclick="placeOrder()">Place order</button>
+    <button class="btn-checkout full" id="placeOrderBtn" onclick="placeOrder()">Proceed to payment</button>
     <div id="orderError"></div>
 
     <a href="cart.html" class="btn-back">← Edit cart</a>

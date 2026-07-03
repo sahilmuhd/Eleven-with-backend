@@ -1,3 +1,5 @@
+import razorpay
+from django.conf import settings
 from rest_framework import viewsets, permissions, status
 from rest_framework.authtoken.models import Token
 from rest_framework.decorators import api_view, permission_classes
@@ -7,8 +9,12 @@ from .models import Product, Order
 from .serializers import (
     ProductSerializer, OrderSerializer, OrderCreateSerializer, TrackOrderSerializer,
     RegisterSerializer, LoginSerializer, CustomerSerializer,
-    CartSerializer, WishlistSerializer,
+    CartSerializer, WishlistSerializer, VerifyPaymentSerializer,
 )
+
+
+def get_razorpay_client():
+    return razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
 
 
 class IsAdminOrReadOnly(permissions.BasePermission):
@@ -55,7 +61,77 @@ class OrderViewSet(viewsets.ModelViewSet):
         serializer = OrderCreateSerializer(data=request.data, context={'request': request})
         serializer.is_valid(raise_exception=True)
         order = serializer.save()
-        return Response(OrderSerializer(order).data, status=status.HTTP_201_CREATED)
+
+        # Payment is Razorpay-only: create the matching Razorpay order right
+        # away so checkout.js can open the payment widget against it. If
+        # Razorpay is unreachable or misconfigured, don't leave a dangling
+        # unpaid order behind — delete it and tell the customer to retry.
+        client = get_razorpay_client()
+        try:
+            rp_order = client.order.create({
+                'amount': order.total * 100,  # Razorpay wants the amount in paise
+                'currency': 'INR',
+                'receipt': order.order_id,
+                'payment_capture': 1,
+            })
+        except Exception:
+            order.delete()
+            return Response(
+                {'detail': 'Could not start payment right now. Please try again in a moment.'},
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
+
+        order.razorpay_order_id = rp_order['id']
+        order.save(update_fields=['razorpay_order_id'])
+
+        data = OrderSerializer(order).data
+        data['razorpay'] = {
+            'key_id': settings.RAZORPAY_KEY_ID,
+            'razorpay_order_id': rp_order['id'],
+            'amount': rp_order['amount'],
+            'currency': rp_order['currency'],
+        }
+        return Response(data, status=status.HTTP_201_CREATED)
+
+
+@api_view(['POST'])
+@permission_classes([permissions.AllowAny])
+def verify_payment_view(request):
+    """
+    POST /api/orders/verify-payment/
+    { order_id, razorpay_order_id, razorpay_payment_id, razorpay_signature }
+
+    Called by checkout.js the instant Razorpay's widget reports success.
+    The signature is the only part of this that actually proves the
+    payment happened — razorpay_payment_id alone could be faked by anyone
+    poking at the browser console, so this is verified server-side against
+    Razorpay's secret key before the order is marked paid.
+    """
+    serializer = VerifyPaymentSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    d = serializer.validated_data
+
+    order = Order.objects.filter(order_id=d['order_id'], razorpay_order_id=d['razorpay_order_id']).first()
+    if not order:
+        return Response({'detail': 'Order not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+    client = get_razorpay_client()
+    try:
+        client.utility.verify_payment_signature({
+            'razorpay_order_id': d['razorpay_order_id'],
+            'razorpay_payment_id': d['razorpay_payment_id'],
+            'razorpay_signature': d['razorpay_signature'],
+        })
+    except razorpay.errors.SignatureVerificationError:
+        order.payment_status = 'failed'
+        order.save(update_fields=['payment_status'])
+        return Response({'detail': 'Payment verification failed.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    order.payment_status = 'paid'
+    order.razorpay_payment_id = d['razorpay_payment_id']
+    order.razorpay_signature = d['razorpay_signature']
+    order.save(update_fields=['payment_status', 'razorpay_payment_id', 'razorpay_signature'])
+    return Response(OrderSerializer(order).data)
 
 
 @api_view(['POST'])
