@@ -1,16 +1,24 @@
 from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
-from django.conf.urls.static import static
+from django.views.static import serve
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/', include('shop.urls')),
 ]
 
-# Serve product photos (media files) regardless of DEBUG. This isn't the
-# most efficient way to serve images at real scale (a CDN like Cloudinary/S3
-# would be better long-term), but for this store's size it's simple and
-# works — and fixes images being blank in production, since they were only
-# being served when DEBUG=True before.
-urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+# Serve product photos (media files) regardless of DEBUG.
+#
+# NOTE: Django's usual `django.conf.urls.static.static()` helper looks like
+# it does this, but internally it ALWAYS returns an empty list when
+# DEBUG=False — no matter how you call it. That's why the previous fix
+# (just removing the `if settings.DEBUG:` around it) didn't actually work.
+# Calling the underlying view directly, like this, bypasses that check.
+#
+# This isn't the most efficient way to serve images at real scale (a CDN
+# like Cloudinary/S3 would be better long-term), but for this store's size
+# it's simple and works.
+urlpatterns += [
+    path('media/<path:path>', serve, {'document_root': settings.MEDIA_ROOT}),
+]
