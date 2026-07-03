@@ -109,6 +109,7 @@ class OrderSerializer(serializers.ModelSerializer):
         model = Order
         fields = [
             'order_id', 'customer_name', 'customer_phone', 'customer_email',
+            'address_line1', 'address_line2', 'city', 'state', 'pincode',
             'subtotal', 'discount', 'total', 'coupon_code', 'status',
             'created_at', 'items',
         ]
@@ -117,9 +118,14 @@ class OrderSerializer(serializers.ModelSerializer):
 
 class OrderCreateSerializer(serializers.Serializer):
     """What checkout.html POSTs when placing an order."""
-    customer_name = serializers.CharField(required=False, allow_blank=True)
+    customer_name = serializers.CharField(max_length=120)
     customer_phone = serializers.CharField()
     customer_email = serializers.EmailField(required=False, allow_blank=True)
+    address_line1 = serializers.CharField(max_length=200)
+    address_line2 = serializers.CharField(max_length=200, required=False, allow_blank=True)
+    city = serializers.CharField(max_length=100)
+    state = serializers.CharField(max_length=100)
+    pincode = serializers.RegexField(r'^\d{6}$', error_messages={'invalid': 'Enter a valid 6-digit PIN code.'})
     subtotal = serializers.IntegerField()
     discount = serializers.IntegerField(default=0)
     total = serializers.IntegerField()

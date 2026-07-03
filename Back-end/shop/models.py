@@ -119,6 +119,16 @@ class Order(models.Model):
     customer_phone = models.CharField(max_length=20)
     customer_email = models.EmailField(blank=True)
 
+    # Shipping address — required for every new order placed through
+    # checkout.html now that orders are fulfilled from the database instead
+    # of over WhatsApp. Kept blank=True at the model level so older orders
+    # placed before this field existed don't break admin/serialization.
+    address_line1 = models.CharField(max_length=200, blank=True)
+    address_line2 = models.CharField(max_length=200, blank=True)
+    city = models.CharField(max_length=100, blank=True)
+    state = models.CharField(max_length=100, blank=True)
+    pincode = models.CharField(max_length=10, blank=True)
+
     subtotal = models.PositiveIntegerField(default=0)
     discount = models.PositiveIntegerField(default=0)
     total = models.PositiveIntegerField(default=0)

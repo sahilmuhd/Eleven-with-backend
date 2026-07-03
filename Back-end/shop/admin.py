@@ -36,11 +36,18 @@ class OrderItemInline(admin.TabularInline):
 
 @admin.register(Order)
 class OrderAdmin(admin.ModelAdmin):
-    list_display = ['order_id', 'customer_name', 'customer_phone', 'user', 'total', 'status', 'created_at']
+    list_display = ['order_id', 'customer_name', 'customer_phone', 'city', 'user', 'total', 'status', 'created_at']
     list_editable = ['status']
-    list_filter = ['status', 'created_at']
-    search_fields = ['order_id', 'customer_phone', 'customer_name']
+    list_filter = ['status', 'created_at', 'state']
+    search_fields = ['order_id', 'customer_phone', 'customer_name', 'pincode']
     readonly_fields = ['order_id', 'subtotal', 'discount', 'total', 'coupon_code', 'created_at', 'updated_at']
+    fieldsets = (
+        (None, {'fields': ('order_id', 'user', 'status')}),
+        ('Customer', {'fields': ('customer_name', 'customer_phone', 'customer_email')}),
+        ('Shipping address', {'fields': ('address_line1', 'address_line2', 'city', 'state', 'pincode')}),
+        ('Totals', {'fields': ('subtotal', 'discount', 'total', 'coupon_code')}),
+        ('Timestamps', {'fields': ('created_at', 'updated_at')}),
+    )
     inlines = [OrderItemInline]
     # This is the key improvement over the old fake admin.html:
     # changing `status` here (or right from the list view, since it's
