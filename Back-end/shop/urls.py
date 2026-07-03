@@ -4,6 +4,7 @@ from rest_framework.routers import DefaultRouter
 from .views import (
     ProductViewSet, OrderViewSet, track_order,
     register_view, login_view, me_view, my_orders_view,
+    cart_view, wishlist_view,
 )
 
 router = DefaultRouter()
@@ -17,4 +18,6 @@ urlpatterns = [
     path('auth/login/', login_view, name='auth-login'),
     path('auth/me/', me_view, name='auth-me'),
     path('my-orders/', my_orders_view, name='my-orders'),
+    path('cart/', cart_view, name='cart'),
+    path('wishlist/', wishlist_view, name='wishlist'),
 ]

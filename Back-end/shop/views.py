@@ -7,6 +7,7 @@ from .models import Product, Order
 from .serializers import (
     ProductSerializer, OrderSerializer, OrderCreateSerializer, TrackOrderSerializer,
     RegisterSerializer, LoginSerializer, CustomerSerializer,
+    CartSerializer, WishlistSerializer,
 )
 
 
@@ -111,6 +112,46 @@ def login_view(request):
 def me_view(request):
     """GET /api/auth/me/  — requires Authorization: Token <key>"""
     return Response(CustomerSerializer(request.user.customer).data)
+
+
+@api_view(['GET', 'PUT'])
+@permission_classes([permissions.IsAuthenticated])
+def cart_view(request):
+    """
+    GET  /api/cart/  -> the logged-in customer's saved cart
+    PUT  /api/cart/  -> { items: [...] } replaces it wholesale
+
+    The frontend (eleven-cart.js) keeps localStorage as its working copy for
+    speed/offline-safety, and calls this to keep it backed up server-side —
+    pulling it down on login/page load and pushing it up after every change,
+    so the cart survives a new device or a cleared browser.
+    """
+    customer = request.user.customer
+    if request.method == 'PUT':
+        serializer = CartSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        customer.cart = serializer.validated_data['items']
+        customer.save(update_fields=['cart'])
+        return Response({'items': customer.cart})
+    return Response({'items': customer.cart})
+
+
+@api_view(['GET', 'PUT'])
+@permission_classes([permissions.IsAuthenticated])
+def wishlist_view(request):
+    """
+    GET  /api/wishlist/  -> the logged-in customer's saved wishlist (list of SKUs)
+    PUT  /api/wishlist/  -> { skus: [...] } replaces it wholesale
+    Same pull-on-login / push-on-change pattern as /api/cart/.
+    """
+    customer = request.user.customer
+    if request.method == 'PUT':
+        serializer = WishlistSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        customer.wishlist = serializer.validated_data['skus']
+        customer.save(update_fields=['wishlist'])
+        return Response({'skus': customer.wishlist})
+    return Response({'skus': customer.wishlist})
 
 
 @api_view(['GET'])

@@ -13,6 +13,14 @@ class Customer(models.Model):
     name = models.CharField(max_length=120)
     phone = models.CharField(max_length=20, blank=True)
 
+    # Server-side cart/wishlist for logged-in shoppers, so both persist
+    # across devices/browsers instead of living only in localStorage.
+    # Shape mirrors the frontend exactly:
+    #   cart:      [{sku, name, size, price, qty, color?, shape?}, ...]
+    #   wishlist:  ['SKU-1', 'SKU-2', ...]
+    cart = models.JSONField(default=list, blank=True)
+    wishlist = models.JSONField(default=list, blank=True)
+
     def __str__(self):
         return f'{self.name} <{self.user.email}>'
 

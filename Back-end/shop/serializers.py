@@ -139,6 +139,28 @@ class OrderCreateSerializer(serializers.Serializer):
         return order
 
 
+class CartItemSerializer(serializers.Serializer):
+    """One line of the synced cart — mirrors the localStorage item shape
+    used by eleven-cart.js exactly, so no translation is needed either side."""
+    sku = serializers.CharField()
+    name = serializers.CharField()
+    size = serializers.CharField()
+    price = serializers.IntegerField()
+    qty = serializers.IntegerField(min_value=1)
+    color = serializers.CharField(required=False, allow_blank=True)
+    shape = serializers.IntegerField(required=False)
+
+
+class CartSerializer(serializers.Serializer):
+    """What GET/PUT /api/cart/ returns and accepts."""
+    items = CartItemSerializer(many=True)
+
+
+class WishlistSerializer(serializers.Serializer):
+    """What GET/PUT /api/wishlist/ returns and accepts — just a list of SKUs."""
+    skus = serializers.ListField(child=serializers.CharField(), allow_empty=True)
+
+
 class TrackOrderSerializer(serializers.Serializer):
     """What the 'track my order' page POSTs to look up status."""
     order_id = serializers.CharField()

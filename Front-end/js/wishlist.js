@@ -88,6 +88,7 @@ function addToCartFromWish(p){
   ELEVEN.showToast(p.name + ' added to cart');
 }
 
+document.addEventListener('eleven:synced', renderWishlist);
 renderWishlist();
 
 /* ---- next inline block ---- */

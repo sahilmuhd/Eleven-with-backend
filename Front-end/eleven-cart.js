@@ -15,6 +15,7 @@ const ELEVEN = {
   saveCart(cart) {
     localStorage.setItem(this.CART_KEY, JSON.stringify(cart));
     this.updateAllBadges();
+    this._queuePush();
   },
   addToCart(item) {
     const cart = this.getCart();
@@ -63,7 +64,10 @@ const ELEVEN = {
     try { return JSON.parse(localStorage.getItem(this.WISH_KEY)) || []; }
     catch { return []; }
   },
-  saveWishlist(w) { localStorage.setItem(this.WISH_KEY, JSON.stringify(w)); },
+  saveWishlist(w) {
+    localStorage.setItem(this.WISH_KEY, JSON.stringify(w));
+    this._queuePush();
+  },
   toggleWish(sku) {
     const w = this.getWishlist();
     const idx = w.indexOf(sku);
@@ -72,6 +76,115 @@ const ELEVEN = {
     return w.includes(sku);
   },
   isWished(sku) { return this.getWishlist().includes(sku); },
+
+  // ---- Server sync (logged-in customers) ----
+  // localStorage stays the fast/offline working copy for everyone. For a
+  // logged-in customer it's also backed up to the Django backend, so the
+  // cart/wishlist survive a new device, a cleared browser, or a reinstall.
+  // Guests are unaffected — nothing here runs unless ELEVEN_AUTH says
+  // someone is logged in, and everything fails silently (network hiccups
+  // never break the local cart).
+  _pushTimer: null,
+  _queuePush() {
+    if (typeof ELEVEN_AUTH === 'undefined' || !ELEVEN_AUTH.isLoggedIn()) return;
+    clearTimeout(this._pushTimer);
+    this._pushTimer = setTimeout(() => this.pushToServer(), 600);
+  },
+  /* Cancels any pending debounced push and sends the current cart/wishlist
+     immediately, with `keepalive` so the request survives the page
+     unloading right after (e.g. clicking straight to Checkout, or closing
+     the tab). Without this, a change made in the last 600ms before
+     navigating away could get lost on the next sync. */
+  flushPush() {
+    if (typeof ELEVEN_AUTH === 'undefined' || !ELEVEN_AUTH.isLoggedIn()) return;
+    clearTimeout(this._pushTimer);
+    this.pushToServer({ keepalive: true });
+  },
+  async pushToServer(opts) {
+    if (typeof ELEVEN_AUTH === 'undefined' || !ELEVEN_AUTH.isLoggedIn()) return;
+    const keepalive = !!(opts && opts.keepalive);
+    const token = ELEVEN_AUTH.getToken();
+    const headers = { 'Content-Type': 'application/json', 'Authorization': 'Token ' + token };
+    try {
+      await fetch(ELEVEN_API_BASE + '/cart/', {
+        method: 'PUT', headers, keepalive, body: JSON.stringify({ items: this.getCart() }),
+      });
+    } catch (err) { /* offline/unreachable — local copy is still safe */ }
+    try {
+      await fetch(ELEVEN_API_BASE + '/wishlist/', {
+        method: 'PUT', headers, keepalive, body: JSON.stringify({ skus: this.getWishlist() }),
+      });
+    } catch (err) { /* ignore */ }
+  },
+  /* Called on every page load once a valid token is confirmed (see
+     eleven-auth.js refresh()). Server is treated as the source of truth at
+     this point — it already reflects whatever the merge-on-login produced
+     plus any changes made on other devices. */
+  async pullFromServer() {
+    if (typeof ELEVEN_AUTH === 'undefined' || !ELEVEN_AUTH.isLoggedIn()) return;
+    const token = ELEVEN_AUTH.getToken();
+    const headers = { 'Authorization': 'Token ' + token };
+    try {
+      const res = await fetch(ELEVEN_API_BASE + '/cart/', { headers });
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data.items)) {
+          localStorage.setItem(this.CART_KEY, JSON.stringify(data.items));
+          this.updateAllBadges();
+        }
+      }
+    } catch (err) { /* ignore, keep local copy */ }
+    try {
+      const res = await fetch(ELEVEN_API_BASE + '/wishlist/', { headers });
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data.skus)) localStorage.setItem(this.WISH_KEY, JSON.stringify(data.skus));
+      }
+    } catch (err) { /* ignore */ }
+    // Cart/wishlist pages may have already rendered from the (possibly
+    // stale) local copy before this network round-trip finished — let them
+    // know it's safe to re-render with the now-current data.
+    document.dispatchEvent(new CustomEvent('eleven:synced'));
+  },
+  /* Called exactly once, right after a successful login/register (see
+     eleven-auth.js). Combines whatever the customer built as a guest on
+     this device with whatever's already saved on their account, so
+     nothing gets silently overwritten either way. */
+  async mergeGuestCartIntoServer() {
+    if (typeof ELEVEN_AUTH === 'undefined' || !ELEVEN_AUTH.isLoggedIn()) return;
+    const token = ELEVEN_AUTH.getToken();
+    const headers = { 'Content-Type': 'application/json', 'Authorization': 'Token ' + token };
+    let serverCart = [], serverWish = [];
+    try {
+      const res = await fetch(ELEVEN_API_BASE + '/cart/', { headers: { 'Authorization': 'Token ' + token } });
+      if (res.ok) serverCart = (await res.json()).items || [];
+    } catch (err) { /* treat as empty */ }
+    try {
+      const res = await fetch(ELEVEN_API_BASE + '/wishlist/', { headers: { 'Authorization': 'Token ' + token } });
+      if (res.ok) serverWish = (await res.json()).skus || [];
+    } catch (err) { /* treat as empty */ }
+
+    // Merge carts: same sku+size adds quantities together, everything else is unioned.
+    const mergedCart = [...serverCart];
+    this.getCart().forEach(localItem => {
+      const idx = mergedCart.findIndex(i => i.sku === localItem.sku && i.size === localItem.size);
+      if (idx >= 0) mergedCart[idx].qty += localItem.qty;
+      else mergedCart.push(localItem);
+    });
+
+    // Merge wishlists: plain union of SKUs.
+    const mergedWish = Array.from(new Set([...serverWish, ...this.getWishlist()]));
+
+    localStorage.setItem(this.CART_KEY, JSON.stringify(mergedCart));
+    localStorage.setItem(this.WISH_KEY, JSON.stringify(mergedWish));
+    this.updateAllBadges();
+
+    try {
+      await fetch(ELEVEN_API_BASE + '/cart/', { method: 'PUT', headers, body: JSON.stringify({ items: mergedCart }) });
+      await fetch(ELEVEN_API_BASE + '/wishlist/', { method: 'PUT', headers, body: JSON.stringify({ skus: mergedWish }) });
+    } catch (err) { /* local merge already saved; next pushToServer will retry */ }
+    document.dispatchEvent(new CustomEvent('eleven:synced'));
+  },
 
   // ---- UI helpers ----
   updateAllBadges() {
@@ -105,6 +218,15 @@ const ELEVEN = {
 };
 
 document.addEventListener('DOMContentLoaded', () => ELEVEN.updateAllBadges());
+
+/* Flush any debounced cart/wishlist push the instant the page is about to
+   go away — covers tab close, refresh, and navigating straight to another
+   page right after a change (e.g. Add to cart -> Checkout). 'pagehide' and
+   visibility change together cover both desktop and mobile browsers. */
+window.addEventListener('pagehide', () => ELEVEN.flushPush());
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') ELEVEN.flushPush();
+});
 
 /* ===== Shared mobile menu toggle ===== */
 function toggleMenu(){

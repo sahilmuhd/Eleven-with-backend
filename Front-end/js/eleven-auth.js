@@ -24,6 +24,14 @@ const ELEVEN_AUTH = {
   logout() {
     localStorage.removeItem(this.TOKEN_KEY);
     localStorage.removeItem(this.USER_KEY);
+    // Clear the local cart/wishlist too — otherwise on a shared device the
+    // next person to log in would have this account's items merged into
+    // theirs by mergeGuestCartIntoServer().
+    if (typeof ELEVEN !== 'undefined') {
+      localStorage.removeItem(ELEVEN.CART_KEY);
+      localStorage.removeItem(ELEVEN.WISH_KEY);
+      ELEVEN.updateAllBadges();
+    }
   },
 
   async register({ name, email, phone, password }) {
@@ -35,6 +43,7 @@ const ELEVEN_AUTH = {
     const data = await res.json();
     if (!res.ok) throw new Error(firstError(data) || 'Could not create account.');
     this._save(data.token, { name: data.name, email: data.email, phone: data.phone });
+    if (typeof ELEVEN !== 'undefined') await ELEVEN.mergeGuestCartIntoServer();
     return data;
   },
 
@@ -47,6 +56,7 @@ const ELEVEN_AUTH = {
     const data = await res.json();
     if (!res.ok) throw new Error(firstError(data) || 'Incorrect email or password.');
     this._save(data.token, { name: data.name, email: data.email, phone: data.phone });
+    if (typeof ELEVEN !== 'undefined') await ELEVEN.mergeGuestCartIntoServer();
     return data;
   },
 
@@ -62,6 +72,7 @@ const ELEVEN_AUTH = {
       if (!res.ok) { this.logout(); return null; }
       const data = await res.json();
       localStorage.setItem(this.USER_KEY, JSON.stringify(data));
+      if (typeof ELEVEN !== 'undefined') ELEVEN.pullFromServer();
       return data;
     } catch (err) {
       // Network hiccup — keep the cached user rather than logging them out.

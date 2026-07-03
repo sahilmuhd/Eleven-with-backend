@@ -119,6 +119,8 @@ const shoeShapes = [
     document.getElementById('couponApplied').style.display = 'flex';
   }
 
+  document.addEventListener('eleven:synced', renderCart);
+
   (async function(){
     await renderCart();
 
