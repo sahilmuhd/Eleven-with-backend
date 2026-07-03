@@ -1,4 +1,10 @@
-import razorpay
+import base64
+import hashlib
+import hmac
+import json
+import urllib.error
+import urllib.request
+
 from django.conf import settings
 from rest_framework import viewsets, permissions, status
 from rest_framework.authtoken.models import Token
@@ -13,8 +19,46 @@ from .serializers import (
 )
 
 
-def get_razorpay_client():
-    return razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
+class RazorpayError(Exception):
+    pass
+
+
+def create_razorpay_order(amount_paise, receipt):
+    """
+    Creates a Razorpay order via their REST API directly, using only the
+    standard library — deliberately NOT using the official `razorpay`
+    PyPI package, which pulls in `pkg_resources` and breaks with a
+    `ModuleNotFoundError` on fresh venvs paired with newer setuptools/Python
+    (a known, messy compatibility issue). This does the same thing with
+    zero extra dependencies.
+    """
+    auth = base64.b64encode(f'{settings.RAZORPAY_KEY_ID}:{settings.RAZORPAY_KEY_SECRET}'.encode()).decode()
+    body = json.dumps({
+        'amount': amount_paise,
+        'currency': 'INR',
+        'receipt': receipt,
+        'payment_capture': 1,
+    }).encode()
+    req = urllib.request.Request(
+        'https://api.razorpay.com/v1/orders',
+        data=body, method='POST',
+        headers={'Authorization': f'Basic {auth}', 'Content-Type': 'application/json'},
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            return json.loads(resp.read().decode())
+    except urllib.error.HTTPError as e:
+        raise RazorpayError(e.read().decode())
+    except Exception as e:
+        raise RazorpayError(str(e))
+
+
+def verify_razorpay_signature(razorpay_order_id, razorpay_payment_id, razorpay_signature):
+    """Razorpay's signature is just HMAC-SHA256 of 'order_id|payment_id'
+    using your secret key — this is the whole verification, no SDK needed."""
+    payload = f'{razorpay_order_id}|{razorpay_payment_id}'.encode()
+    expected = hmac.new(settings.RAZORPAY_KEY_SECRET.encode(), payload, hashlib.sha256).hexdigest()
+    return hmac.compare_digest(expected, razorpay_signature)
 
 
 class IsAdminOrReadOnly(permissions.BasePermission):
@@ -66,15 +110,9 @@ class OrderViewSet(viewsets.ModelViewSet):
         # away so checkout.js can open the payment widget against it. If
         # Razorpay is unreachable or misconfigured, don't leave a dangling
         # unpaid order behind — delete it and tell the customer to retry.
-        client = get_razorpay_client()
         try:
-            rp_order = client.order.create({
-                'amount': order.total * 100,  # Razorpay wants the amount in paise
-                'currency': 'INR',
-                'receipt': order.order_id,
-                'payment_capture': 1,
-            })
-        except Exception:
+            rp_order = create_razorpay_order(order.total * 100, order.order_id)  # amount in paise
+        except RazorpayError:
             order.delete()
             return Response(
                 {'detail': 'Could not start payment right now. Please try again in a moment.'},
@@ -115,14 +153,7 @@ def verify_payment_view(request):
     if not order:
         return Response({'detail': 'Order not found.'}, status=status.HTTP_404_NOT_FOUND)
 
-    client = get_razorpay_client()
-    try:
-        client.utility.verify_payment_signature({
-            'razorpay_order_id': d['razorpay_order_id'],
-            'razorpay_payment_id': d['razorpay_payment_id'],
-            'razorpay_signature': d['razorpay_signature'],
-        })
-    except razorpay.errors.SignatureVerificationError:
+    if not verify_razorpay_signature(d['razorpay_order_id'], d['razorpay_payment_id'], d['razorpay_signature']):
         order.payment_status = 'failed'
         order.save(update_fields=['payment_status'])
         return Response({'detail': 'Payment verification failed.'}, status=status.HTTP_400_BAD_REQUEST)
