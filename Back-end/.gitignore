@@ -1,25 +1,8 @@
-# Python
+venv/
+.env
+db.sqlite3
+staticfiles/
 __pycache__/
 *.py[cod]
-
-# Virtual Environment
-venv/
-
-# Environment Variables
-.env
-
-# SQLite
-db.sqlite3
-
-# Django
-media/
-staticfiles/
-
-# Logs
-*.log
-
-# VS Code
 .vscode/
-
-# Windows
 Thumbs.db
