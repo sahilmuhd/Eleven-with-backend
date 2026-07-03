@@ -1,5 +1,51 @@
+from django.contrib.auth import authenticate
+from django.contrib.auth.models import User
+from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
-from .models import Product, ProductImage, Category, Order, OrderItem
+from .models import Product, ProductImage, Category, Order, OrderItem, Customer
+
+
+class RegisterSerializer(serializers.Serializer):
+    """What register.html POSTs to /api/auth/register/."""
+    name = serializers.CharField(max_length=120)
+    email = serializers.EmailField()
+    phone = serializers.CharField(max_length=20)
+    password = serializers.CharField(write_only=True, validators=[validate_password])
+
+    def validate_email(self, value):
+        value = value.strip().lower()
+        if User.objects.filter(username=value).exists():
+            raise serializers.ValidationError('An account with this email already exists.')
+        return value
+
+    def create(self, validated_data):
+        user = User.objects.create_user(
+            username=validated_data['email'],
+            email=validated_data['email'],
+            password=validated_data['password'],
+        )
+        Customer.objects.create(user=user, name=validated_data['name'], phone=validated_data['phone'])
+        return user
+
+
+class LoginSerializer(serializers.Serializer):
+    """What login.html POSTs to /api/auth/login/."""
+    email = serializers.EmailField()
+    password = serializers.CharField(write_only=True)
+
+    def validate(self, attrs):
+        user = authenticate(username=attrs['email'].strip().lower(), password=attrs['password'])
+        if not user:
+            raise serializers.ValidationError('Incorrect email or password.')
+        attrs['user'] = user
+        return attrs
+
+
+class CustomerSerializer(serializers.Serializer):
+    """Shape returned by register/login/me — matches what eleven-auth.js expects."""
+    name = serializers.CharField()
+    email = serializers.EmailField(source='user.email')
+    phone = serializers.CharField()
 
 
 class ProductImageSerializer(serializers.ModelSerializer):
@@ -82,7 +128,9 @@ class OrderCreateSerializer(serializers.Serializer):
 
     def create(self, validated_data):
         items_data = validated_data.pop('items')
-        order = Order.objects.create(**validated_data)
+        request = self.context.get('request')
+        user = request.user if request and request.user.is_authenticated else None
+        order = Order.objects.create(user=user, **validated_data)
         for item in items_data:
             # look up the real Product row if the SKU still exists, so we
             # can link it — but always keep the snapshot fields too.

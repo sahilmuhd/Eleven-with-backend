@@ -63,9 +63,16 @@ async function fetchElevenProductAsync(sku){
 /* Places a real order against the backend. Throws on failure so callers
    can decide how to handle it (e.g. still let the WhatsApp flow proceed). */
 async function submitElevenOrder(payload){
+  const headers = { 'Content-Type': 'application/json' };
+  // If the customer is logged in (eleven-auth.js), attach their token so
+  // the order gets linked to their account and shows up in order history.
+  // Guest checkout (no token) still works exactly as before.
+  if (typeof ELEVEN_AUTH !== 'undefined' && ELEVEN_AUTH.isLoggedIn()) {
+    headers['Authorization'] = 'Token ' + ELEVEN_AUTH.getToken();
+  }
   const res = await fetch(ELEVEN_API_BASE + '/orders/', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers,
     body: JSON.stringify(payload)
   });
   if(!res.ok){

@@ -1,5 +1,11 @@
 from django.contrib import admin
-from .models import Category, Product, ProductImage, Order, OrderItem
+from .models import Category, Product, ProductImage, Order, OrderItem, Customer
+
+
+@admin.register(Customer)
+class CustomerAdmin(admin.ModelAdmin):
+    list_display = ['name', 'phone', 'user']
+    search_fields = ['name', 'phone', 'user__email']
 
 
 class ProductImageInline(admin.TabularInline):
@@ -30,7 +36,7 @@ class OrderItemInline(admin.TabularInline):
 
 @admin.register(Order)
 class OrderAdmin(admin.ModelAdmin):
-    list_display = ['order_id', 'customer_name', 'customer_phone', 'total', 'status', 'created_at']
+    list_display = ['order_id', 'customer_name', 'customer_phone', 'user', 'total', 'status', 'created_at']
     list_editable = ['status']
     list_filter = ['status', 'created_at']
     search_fields = ['order_id', 'customer_phone', 'customer_name']

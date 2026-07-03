@@ -1,10 +1,12 @@
 from rest_framework import viewsets, permissions, status
+from rest_framework.authtoken.models import Token
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 
 from .models import Product, Order
 from .serializers import (
     ProductSerializer, OrderSerializer, OrderCreateSerializer, TrackOrderSerializer,
+    RegisterSerializer, LoginSerializer, CustomerSerializer,
 )
 
 
@@ -49,7 +51,7 @@ class OrderViewSet(viewsets.ModelViewSet):
         return [permissions.IsAdminUser()]
 
     def create(self, request, *args, **kwargs):
-        serializer = OrderCreateSerializer(data=request.data)
+        serializer = OrderCreateSerializer(data=request.data, context={'request': request})
         serializer.is_valid(raise_exception=True)
         order = serializer.save()
         return Response(OrderSerializer(order).data, status=status.HTTP_201_CREATED)
@@ -76,3 +78,44 @@ def track_order(request):
             status=status.HTTP_404_NOT_FOUND,
         )
     return Response(OrderSerializer(order).data)
+
+
+@api_view(['POST'])
+@permission_classes([permissions.AllowAny])
+def register_view(request):
+    """POST /api/auth/register/  { name, email, phone, password }"""
+    serializer = RegisterSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    user = serializer.save()
+    token, _ = Token.objects.get_or_create(user=user)
+    data = CustomerSerializer(user.customer).data
+    data['token'] = token.key
+    return Response(data, status=status.HTTP_201_CREATED)
+
+
+@api_view(['POST'])
+@permission_classes([permissions.AllowAny])
+def login_view(request):
+    """POST /api/auth/login/  { email, password }"""
+    serializer = LoginSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    user = serializer.validated_data['user']
+    token, _ = Token.objects.get_or_create(user=user)
+    data = CustomerSerializer(user.customer).data
+    data['token'] = token.key
+    return Response(data)
+
+
+@api_view(['GET'])
+@permission_classes([permissions.IsAuthenticated])
+def me_view(request):
+    """GET /api/auth/me/  — requires Authorization: Token <key>"""
+    return Response(CustomerSerializer(request.user.customer).data)
+
+
+@api_view(['GET'])
+@permission_classes([permissions.IsAuthenticated])
+def my_orders_view(request):
+    """GET /api/my-orders/  — requires Authorization: Token <key>"""
+    orders = Order.objects.filter(user=request.user).prefetch_related('items')
+    return Response(OrderSerializer(orders, many=True).data)

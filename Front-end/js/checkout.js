@@ -129,4 +129,12 @@ async function orderOnWhatsApp() {
   window.location.href = 'confirmation.html';
 }
 
-document.addEventListener('DOMContentLoaded', render);
+document.addEventListener('DOMContentLoaded', () => {
+  render();
+  // If logged in, prefill their phone so they don't retype it.
+  const user = ELEVEN_AUTH.getUser();
+  const phoneInput = document.getElementById('customerPhone');
+  if (user && user.phone && phoneInput && !phoneInput.value) {
+    phoneInput.value = user.phone;
+  }
+});

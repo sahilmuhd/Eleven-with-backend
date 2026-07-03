@@ -1,7 +1,20 @@
 import random
 import string
 
+from django.conf import settings
 from django.db import models
+
+
+class Customer(models.Model):
+    """Extra profile info for a registered shopper, on top of Django's
+    built-in User (which handles email/password/auth). Created by
+    /api/auth/register/ — see views.py."""
+    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='customer')
+    name = models.CharField(max_length=120)
+    phone = models.CharField(max_length=20, blank=True)
+
+    def __str__(self):
+        return f'{self.name} <{self.user.email}>'
 
 
 class Category(models.Model):
@@ -86,6 +99,13 @@ class Order(models.Model):
     ]
 
     order_id = models.CharField(max_length=20, unique=True, default=generate_order_id, editable=False)
+
+    # Null for guest checkouts; set when a logged-in customer places the order,
+    # so /api/my-orders/ can look orders up without relying on phone number.
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True,
+        on_delete=models.SET_NULL, related_name='orders',
+    )
 
     customer_name = models.CharField(max_length=120, blank=True)
     customer_phone = models.CharField(max_length=20)
