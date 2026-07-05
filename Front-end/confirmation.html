@@ -68,21 +68,15 @@
   <p>A confirmation has been sent to your email and WhatsApp. We'll notify you again the moment your pair ships from Bangalore.</p>
 
   <div class="order-id-row">
-    <div class="order-id-item"><div class="lbl">Order number</div><div class="val">ELV-2026-08841</div></div>
-    <div class="order-id-item"><div class="lbl">Placed on</div><div class="val">29 Jun 2026</div></div>
-    <div class="order-id-item"><div class="lbl">Estimated delivery</div><div class="val">2–5 Jul 2026</div></div>
+    <div class="order-id-item"><div class="lbl">Order number</div><div class="val" id="conf-order-id">—</div></div>
+    <div class="order-id-item"><div class="lbl">Placed on</div><div class="val" id="conf-placed-on">—</div></div>
+    <div class="order-id-item"><div class="lbl" id="conf-eta-label">Estimated delivery</div><div class="val" id="conf-eta">—</div></div>
   </div>
 </div>
 
 <div class="timeline-section">
   <h3 class="display">Order status</h3>
-  <div class="timeline single" style="justify-content:center;">
-    <div class="timeline-step done" style="flex:none;">
-      <div class="timeline-dot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div>
-      <span class="lbl">Order placed</span>
-      <span class="date">29 Jun</span>
-    </div>
-  </div>
+  <div class="timeline" id="conf-timeline"></div>
 </div>
 
 <div class="details-layout">

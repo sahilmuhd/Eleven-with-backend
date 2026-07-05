@@ -106,6 +106,13 @@ class OrderViewSet(viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
         order = serializer.save()
 
+        # Cash on Delivery: nothing to charge right now, so there's no
+        # Razorpay order to create. The order is placed immediately and
+        # stays payment_status='pending' until staff mark it paid once the
+        # cash is actually collected on delivery.
+        if order.payment_method == 'cod':
+            return Response(OrderSerializer(order).data, status=status.HTTP_201_CREATED)
+
         # Payment is Razorpay-only: create the matching Razorpay order right
         # away so checkout.js can open the payment widget against it. If
         # Razorpay is unreachable or misconfigured, don't leave a dangling

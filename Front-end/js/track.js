@@ -89,7 +89,8 @@ function renderTotals(order){
     rows += '<div class="totals-row"><span>Discount'+(order.coupon_code ? ' ('+esc(order.coupon_code)+')' : '')+'</span><span class="mono" style="color:var(--gold);">&minus;&#x20B9;'+Number(order.discount).toLocaleString('en-IN')+'</span></div>';
   }
   rows += '<div class="totals-row"><span>Shipping</span><span class="mono">Free</span></div>';
-  rows += '<div class="totals-row total"><span>Total paid</span><span class="mono">&#x20B9;'+Number(order.total).toLocaleString('en-IN')+'</span></div>';
+  const totalLabel = order.payment_method === 'cod' ? 'Pay on delivery' : (order.payment_status === 'paid' ? 'Total paid' : 'Total');
+  rows += '<div class="totals-row total"><span>'+totalLabel+'</span><span class="mono">&#x20B9;'+Number(order.total).toLocaleString('en-IN')+'</span></div>';
   totalsEl.innerHTML = rows;
 }
 

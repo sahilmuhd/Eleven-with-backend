@@ -1,43 +1,131 @@
-// Populate confirmation from saved order data
-  (async function(){
-    var orderId  = localStorage.getItem('eleven_order_id')    || ('ELV-' + Math.floor(10000+Math.random()*90000));
-    var snapshot = JSON.parse(localStorage.getItem('eleven_order_snapshot') || 'null');
-    var subtotal = Number(localStorage.getItem('eleven_order_subtotal') || 0);
-    var discount = Number(localStorage.getItem('eleven_order_discount') || 0);
-    var total    = Number(localStorage.getItem('eleven_order_total_raw') || 0);
-    var coupon   = localStorage.getItem('eleven_order_coupon') || '';
+// Populate confirmation from the real order (fetched from the backend),
+// falling back to the localStorage snapshot saved right after checkout
+// if the order can't be reached (offline, etc.) — same pattern used
+// elsewhere on the site so the page never goes blank.
+(async function(){
+  var STATUS_STEPS = [
+    { key: 'placed',            label: 'Order placed' },
+    { key: 'processing',        label: 'Processing' },
+    { key: 'shipped',           label: 'Shipped' },
+    { key: 'out_for_delivery',  label: 'Out for delivery' },
+    { key: 'delivered',         label: 'Delivered' },
+  ];
 
-    // Update order number display
-    document.querySelectorAll('.mono, .val').forEach(function(el){
-      if(el.textContent.includes('ELV-')) el.textContent = orderId;
-    });
+  var orderId = localStorage.getItem('eleven_order_id');
+  var phone   = localStorage.getItem('eleven_order_phone');
 
-    // Render items
-    var itemsEl = document.getElementById('orderItems');
-    var catalog = await fetchElevenCatalogAsync();
-    function imgFor(sku){ var p = catalog.find(function(x){ return x.sku === sku; }); return (p && p.images && p.images[0]) ? p.images[0] : null; }
-    if(itemsEl && snapshot && snapshot.length){
-      itemsEl.innerHTML = snapshot.map(function(it){
-        var img = imgFor(it.sku);
-        return '<div style="display:flex;align-items:center;gap:14px;padding:14px 24px;border-bottom:1px solid var(--line);font-size:13px;">'
-          + '<div class="item-art" style="overflow:hidden;">' + (img ? '<img src="'+img+'" alt="'+it.name+'" style="width:100%;height:100%;object-fit:cover;display:block;">' : '') + '</div>'
-          + '<span style="flex:1;display:flex;justify-content:space-between;"><strong>'+it.name+'</strong> &middot; '+it.size+' &times;'+it.qty+'</span>'
-          + '</div>';
+  var order = null;
+  if (orderId && phone && typeof trackElevenOrder === 'function') {
+    try { order = await trackElevenOrder(orderId, phone); }
+    catch (e) { console.warn('ELEVEN: could not fetch order for confirmation page.', e); }
+  }
+
+  // ---- Fallback snapshot (used only if the real order couldn't be fetched) ----
+  var snapshot     = JSON.parse(localStorage.getItem('eleven_order_snapshot') || 'null');
+  var fallSubtotal = Number(localStorage.getItem('eleven_order_subtotal') || 0);
+  var fallDiscount = Number(localStorage.getItem('eleven_order_discount') || 0);
+  var fallTotal    = Number(localStorage.getItem('eleven_order_total_raw') || 0);
+  var fallCoupon   = localStorage.getItem('eleven_order_coupon') || '';
+
+  var displayId   = order ? order.order_id : (orderId || ('ELV-' + Math.floor(10000 + Math.random() * 90000)));
+  var subtotal    = order ? order.subtotal : fallSubtotal;
+  var discount    = order ? order.discount : fallDiscount;
+  var total       = order ? order.total    : fallTotal;
+  var coupon      = order ? order.coupon_code : fallCoupon;
+  var items       = order ? order.items : snapshot;
+  var status      = order ? order.status : 'placed';
+  var paymentMethod = order ? order.payment_method : 'razorpay';
+  var paymentStatus = order ? order.payment_status : 'paid';
+  var createdAt   = order ? new Date(order.created_at) : new Date();
+
+  // ---- Order number / placed date / estimated delivery ----
+  var idEl = document.getElementById('conf-order-id');
+  if (idEl) idEl.textContent = displayId;
+
+  var placedEl = document.getElementById('conf-placed-on');
+  if (placedEl) {
+    placedEl.textContent = createdAt.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+  }
+
+  var etaEl = document.getElementById('conf-eta');
+  var etaLabelEl = document.getElementById('conf-eta-label');
+  if (etaEl) {
+    if (status === 'delivered') {
+      if (etaLabelEl) etaLabelEl.textContent = 'Delivered on';
+      etaEl.textContent = createdAt.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+    } else if (status === 'cancelled') {
+      if (etaLabelEl) etaLabelEl.textContent = 'Status';
+      etaEl.textContent = 'Cancelled';
+    } else {
+      var etaStart = new Date(createdAt); etaStart.setDate(etaStart.getDate() + 3);
+      var etaEnd   = new Date(createdAt); etaEnd.setDate(etaEnd.getDate() + 6);
+      var fmtShort = function(d){ return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }); };
+      etaEl.textContent = fmtShort(etaStart) + '–' + fmtShort(etaEnd);
+    }
+  }
+
+  // ---- Timeline ----
+  var timelineEl = document.getElementById('conf-timeline');
+  if (timelineEl) {
+    if (status === 'cancelled') {
+      timelineEl.classList.add('single');
+      timelineEl.style.justifyContent = 'center';
+      timelineEl.innerHTML =
+        '<div class="timeline-step cancelled" style="flex:none;">' +
+        '<div class="timeline-dot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></div>' +
+        '<span class="lbl">Order cancelled</span>' +
+        '</div>';
+    } else {
+      var currentIdx = STATUS_STEPS.findIndex(function(s){ return s.key === status; });
+      if (currentIdx === -1) currentIdx = 0;
+      timelineEl.innerHTML = STATUS_STEPS.map(function(step, i){
+        var cls = i < currentIdx ? 'done' : (i === currentIdx ? 'done active' : '');
+        var icon = i <= currentIdx
+          ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>'
+          : '';
+        return '<div class="timeline-step ' + cls + '">' +
+          '<div class="timeline-dot">' + icon + '</div>' +
+          '<span class="lbl">' + step.label + '</span>' +
+          '</div>';
       }).join('');
     }
+  }
 
-    // Render totals
-    var totalsEl = document.getElementById('conf-totals');
-    if(totalsEl){
-      var rows = '<div class="totals-row"><span>Subtotal</span><span class="mono">&#x20B9;'+Math.round(subtotal).toLocaleString('en-IN')+'</span></div>';
-      if(discount > 0){
-        rows += '<div class="totals-row"><span>Discount'+(coupon?' ('+coupon+')':'')+'</span><span class="mono" style="color:var(--gold);">&minus;&#x20B9;'+Math.round(discount).toLocaleString('en-IN')+'</span></div>';
-      }
-      rows += '<div class="totals-row"><span>Shipping</span><span class="mono">Free</span></div>';
-      rows += '<div class="totals-row total"><span>Total paid</span><span class="mono">&#x20B9;'+Math.round(total).toLocaleString('en-IN')+'</span></div>';
-      totalsEl.innerHTML = rows;
+  // ---- Hero copy: differentiate COD vs prepaid ----
+  var heroP = document.querySelector('.confirm-hero p');
+  if (heroP) {
+    heroP.textContent = paymentMethod === 'cod'
+      ? 'A confirmation has been sent to your email and WhatsApp. Please keep ' + ELEVEN.fmt(total) + ' ready in cash for delivery.'
+      : 'A confirmation has been sent to your email and WhatsApp. We\'ll notify you again the moment your pair ships from Bangalore.';
+  }
+
+  // ---- Items ----
+  var itemsEl = document.getElementById('orderItems');
+  var catalog = await fetchElevenCatalogAsync();
+  function imgFor(sku){ var p = catalog.find(function(x){ return x.sku === sku; }); return (p && p.images && p.images[0]) ? p.images[0] : null; }
+  if (itemsEl && items && items.length) {
+    itemsEl.innerHTML = items.map(function(it){
+      var img = imgFor(it.sku);
+      return '<div style="display:flex;align-items:center;gap:14px;padding:14px 24px;border-bottom:1px solid var(--line);font-size:13px;">'
+        + '<div class="item-art" style="overflow:hidden;">' + (img ? '<img src="'+img+'" alt="'+it.name+'" style="width:100%;height:100%;object-fit:cover;display:block;">' : '') + '</div>'
+        + '<span style="flex:1;display:flex;justify-content:space-between;"><strong>'+it.name+'</strong> &middot; '+it.size+' &times;'+it.qty+'</span>'
+        + '</div>';
+    }).join('');
+  }
+
+  // ---- Totals ----
+  var totalsEl = document.getElementById('conf-totals');
+  if (totalsEl) {
+    var rows = '<div class="totals-row"><span>Subtotal</span><span class="mono">&#x20B9;'+Math.round(subtotal).toLocaleString('en-IN')+'</span></div>';
+    if (discount > 0) {
+      rows += '<div class="totals-row"><span>Discount'+(coupon?' ('+coupon+')':'')+'</span><span class="mono" style="color:var(--gold);">&minus;&#x20B9;'+Math.round(discount).toLocaleString('en-IN')+'</span></div>';
     }
-  })();
+    rows += '<div class="totals-row"><span>Shipping</span><span class="mono">Free</span></div>';
+    var totalLabel = paymentMethod === 'cod' ? 'Pay on delivery' : (paymentStatus === 'paid' ? 'Total paid' : 'Total');
+    rows += '<div class="totals-row total"><span>'+totalLabel+'</span><span class="mono">&#x20B9;'+Math.round(total).toLocaleString('en-IN')+'</span></div>';
+    totalsEl.innerHTML = rows;
+  }
+})();
 
 /* ---- next inline block ---- */
 

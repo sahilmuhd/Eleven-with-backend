@@ -36,20 +36,24 @@ class OrderItemInline(admin.TabularInline):
 
 @admin.register(Order)
 class OrderAdmin(admin.ModelAdmin):
-    list_display = ['order_id', 'customer_name', 'customer_phone', 'city', 'total', 'payment_status', 'status', 'created_at']
-    list_editable = ['status']
-    list_filter = ['status', 'payment_status', 'created_at', 'state']
+    list_display = ['order_id', 'customer_name', 'customer_phone', 'city', 'total', 'payment_method', 'payment_status', 'status', 'created_at']
+    list_editable = ['status', 'payment_status']
+    list_filter = ['status', 'payment_method', 'payment_status', 'created_at', 'state']
     search_fields = ['order_id', 'customer_phone', 'customer_name', 'pincode', 'razorpay_payment_id']
     readonly_fields = [
         'order_id', 'subtotal', 'discount', 'total', 'coupon_code', 'created_at', 'updated_at',
-        'payment_status', 'razorpay_order_id', 'razorpay_payment_id', 'razorpay_signature',
+        'payment_method', 'razorpay_order_id', 'razorpay_payment_id', 'razorpay_signature',
     ]
     fieldsets = (
         (None, {'fields': ('order_id', 'user', 'status')}),
         ('Customer', {'fields': ('customer_name', 'customer_phone', 'customer_email')}),
         ('Shipping address', {'fields': ('address_line1', 'address_line2', 'city', 'state', 'pincode')}),
         ('Totals', {'fields': ('subtotal', 'discount', 'total', 'coupon_code')}),
-        ('Payment (Razorpay)', {'fields': ('payment_status', 'razorpay_order_id', 'razorpay_payment_id', 'razorpay_signature')}),
+        # payment_status is editable here (and from the list view) so staff
+        # can mark a Cash on Delivery order as "Paid" once the cash is
+        # actually collected — it doesn't happen automatically like it
+        # does for Razorpay orders.
+        ('Payment', {'fields': ('payment_method', 'payment_status', 'razorpay_order_id', 'razorpay_payment_id', 'razorpay_signature')}),
         ('Timestamps', {'fields': ('created_at', 'updated_at')}),
     )
     inlines = [OrderItemInline]

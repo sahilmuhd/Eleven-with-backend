@@ -117,6 +117,9 @@ async function placeOrder() {
   const total = subtotal - discount;
   const code = ELEVEN.getCouponCode();
 
+  const paymentMethodInput = document.querySelector('input[name="paymentMethod"]:checked');
+  const paymentMethod = paymentMethodInput ? paymentMethodInput.value : 'razorpay';
+
   const placeBtn = document.getElementById('placeOrderBtn');
   if (placeBtn) { placeBtn.disabled = true; placeBtn.textContent = 'Placing order…'; }
 
@@ -133,12 +136,23 @@ async function placeOrder() {
       discount: Math.round(discount),
       total: Math.round(total),
       coupon_code: code || '',
+      payment_method: paymentMethod,
       items: cart.map(i => ({ sku: i.sku, name: i.name, size: i.size, price: i.price, qty: i.qty }))
     });
   } catch (err) {
     console.warn('ELEVEN: order could not be placed.', err);
     showOrderError('Sorry, we could not place your order. Please check your details and try again.');
-    if (placeBtn) { placeBtn.disabled = false; placeBtn.textContent = 'Proceed to payment'; }
+    if (placeBtn) { placeBtn.disabled = false; placeBtn.textContent = paymentMethod === 'cod' ? 'Place order' : 'Proceed to payment'; }
+    return;
+  }
+
+  const ctx = { name, email, phone, cart, subtotal, discount, total, code };
+
+  if (paymentMethod === 'cod') {
+    // Nothing to pay right now — the order is already placed server-side
+    // (payment_status stays 'pending' until cash is collected). Go
+    // straight to confirmation, same as a successful online payment.
+    finishOrder(order, ctx);
     return;
   }
 
@@ -146,7 +160,19 @@ async function placeOrder() {
   // to actually collect payment. Nothing is considered "placed" from the
   // customer's point of view, and the cart isn't cleared, until payment is
   // verified below.
-  openRazorpayCheckout(order, { name, email, phone, cart, subtotal, discount, total, code });
+  openRazorpayCheckout(order, ctx);
+}
+
+function finishOrder(order, ctx) {
+  localStorage.setItem('eleven_order_id',        order.order_id);
+  localStorage.setItem('eleven_order_phone',     ctx.phone);
+  localStorage.setItem('eleven_order_snapshot',  JSON.stringify(ctx.cart));
+  localStorage.setItem('eleven_order_subtotal',  ctx.subtotal);
+  localStorage.setItem('eleven_order_discount',  ctx.discount);
+  localStorage.setItem('eleven_order_total_raw', ctx.total);
+  localStorage.setItem('eleven_order_coupon',    ctx.code || '');
+  ELEVEN.clearCart(); // also clears any applied discount/coupon
+  window.location.href = 'confirmation.html';
 }
 
 function openRazorpayCheckout(order, ctx) {
@@ -194,8 +220,7 @@ function openRazorpayCheckout(order, ctx) {
       localStorage.setItem('eleven_order_coupon',    ctx.code || '');
       ELEVEN.clearCart(); // also clears any applied discount/coupon
       window.location.href = 'confirmation.html';
-    },
-    modal: {
+    },    modal: {
       // Customer closed the Razorpay popup without paying. The order row
       // already exists with payment_status 'pending' — nothing lost, they
       // can just try again.
@@ -227,4 +252,14 @@ document.addEventListener('DOMContentLoaded', () => {
     if (user.name && nameInput && !nameInput.value) nameInput.value = user.name;
     if (user.email && emailInput && !emailInput.value) emailInput.value = user.email;
   }
+
+  // Swap the button label to match the selected payment method.
+  const placeBtn = document.getElementById('placeOrderBtn');
+  document.querySelectorAll('input[name="paymentMethod"]').forEach(input => {
+    input.addEventListener('change', () => {
+      if (placeBtn && !placeBtn.disabled) {
+        placeBtn.textContent = input.value === 'cod' ? 'Place order' : 'Proceed to payment';
+      }
+    });
+  });
 });

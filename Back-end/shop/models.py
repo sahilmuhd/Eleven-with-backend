@@ -110,6 +110,10 @@ class Order(models.Model):
         ('paid', 'Paid'),
         ('failed', 'Failed'),
     ]
+    PAYMENT_METHOD_CHOICES = [
+        ('razorpay', 'Prepaid (Razorpay)'),
+        ('cod', 'Cash on Delivery'),
+    ]
 
     order_id = models.CharField(max_length=20, unique=True, default=generate_order_id, editable=False)
 
@@ -140,6 +144,12 @@ class Order(models.Model):
     coupon_code = models.CharField(max_length=40, blank=True)
 
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='placed')
+
+    # 'razorpay' (pay online now) or 'cod' (pay cash when it arrives). COD
+    # orders skip Razorpay entirely — see OrderViewSet.create in views.py —
+    # and stay payment_status='pending' until marked paid manually by staff
+    # once cash is collected.
+    payment_method = models.CharField(max_length=20, choices=PAYMENT_METHOD_CHOICES, default='razorpay')
 
     # Razorpay integration. The order row is created up-front (with
     # payment_status='pending') so we have an order_id/receipt to hand

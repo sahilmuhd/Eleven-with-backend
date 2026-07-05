@@ -117,6 +117,20 @@
   .field-error.show{display:block;}
   .checkout-form-title{font-size:12px; letter-spacing:0.08em; text-transform:uppercase; color:var(--steel-dim); margin:24px 0 14px; padding-top:20px; border-top:1px solid var(--line);}
   .checkout-form-title:first-of-type{padding-top:0; border-top:none; margin-top:20px;}
+
+  /* PAYMENT METHOD SELECTOR */
+  #paymentMethodGroup{display:flex; flex-direction:column; gap:10px; margin-bottom:14px;}
+  .payment-option{
+    display:flex; align-items:flex-start; gap:12px; cursor:pointer;
+    background:var(--charcoal-2); border:1px solid var(--line); padding:14px 16px;
+    transition:border-color .2s;
+  }
+  .payment-option:has(input:checked){border-color:var(--blue);}
+  .payment-option input[type="radio"]{width:16px; height:16px; padding:0; margin:3px 0 0 0; background:none; border:none; accent-color:var(--blue); flex-shrink:0; flex-grow:0;}
+  .payment-option span{display:flex; flex-direction:column; gap:2px; flex:1; min-width:0;}
+  .payment-option strong{font-size:13px; color:var(--chalk); font-weight:600;}
+  .payment-option small{font-size:11.5px; color:var(--steel-dim);}
+
   #orderError{display:none; font-size:12px; color:#e05252; background:rgba(224,82,82,0.08); border:1px solid rgba(224,82,82,0.25); padding:12px 14px; margin-top:14px;}
   #orderError.show{display:block;}
   .btn-checkout.full{display:block; width:100%; margin-top:20px; border:none;}

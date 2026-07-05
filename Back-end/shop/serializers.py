@@ -111,7 +111,7 @@ class OrderSerializer(serializers.ModelSerializer):
             'order_id', 'customer_name', 'customer_phone', 'customer_email',
             'address_line1', 'address_line2', 'city', 'state', 'pincode',
             'subtotal', 'discount', 'total', 'coupon_code', 'status',
-            'payment_status', 'created_at', 'items',
+            'payment_status', 'payment_method', 'created_at', 'items',
         ]
         read_only_fields = ['order_id', 'status', 'payment_status', 'created_at']
 
@@ -130,6 +130,7 @@ class OrderCreateSerializer(serializers.Serializer):
     discount = serializers.IntegerField(default=0)
     total = serializers.IntegerField()
     coupon_code = serializers.CharField(required=False, allow_blank=True)
+    payment_method = serializers.ChoiceField(choices=['razorpay', 'cod'], default='razorpay')
     items = OrderItemWriteSerializer(many=True)
 
     def create(self, validated_data):

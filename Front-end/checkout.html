@@ -109,6 +109,24 @@
       <span class="field-error" id="err-pincode">Enter a valid 6-digit PIN code.</span>
     </div>
 
+    <div class="checkout-form-title">Payment method</div>
+    <div class="field-group" id="paymentMethodGroup">
+      <label class="payment-option">
+        <input type="radio" name="paymentMethod" value="razorpay" checked>
+        <span>
+          <strong>Pay online</strong>
+          <small>Cards, UPI, Netbanking, Wallets — via Razorpay</small>
+        </span>
+      </label>
+      <label class="payment-option">
+        <input type="radio" name="paymentMethod" value="cod">
+        <span>
+          <strong>Cash on Delivery</strong>
+          <small>Pay in cash when your order arrives</small>
+        </span>
+      </label>
+    </div>
+
     <button class="btn-checkout full" id="placeOrderBtn" onclick="placeOrder()">Proceed to payment</button>
     <div id="orderError"></div>
 
