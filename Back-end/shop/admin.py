@@ -61,3 +61,15 @@ class OrderAdmin(admin.ModelAdmin):
     # changing `status` here (or right from the list view, since it's
     # list_editable) actually updates the order, and the track-order page
     # picks it up immediately.
+
+    def save_model(self, request, obj, form, change):
+        # Detect a transition *into* 'cancelled' (from anything else) so we
+        # can give the reserved pairs back to stock automatically — covers
+        # both the detail-page dropdown and the quick list_editable column,
+        # since both route through save_model().
+        became_cancelled = (
+            change and 'status' in form.changed_data and obj.status == 'cancelled'
+        )
+        super().save_model(request, obj, form, change)
+        if became_cancelled:
+            obj.restore_stock()

@@ -141,7 +141,13 @@ async function placeOrder() {
     });
   } catch (err) {
     console.warn('ELEVEN: order could not be placed.', err);
-    showOrderError('Sorry, we could not place your order. Please check your details and try again.');
+    // If this failed because a size sold out between page load and
+    // checkout (see OrderCreateSerializer.create() in the backend), show
+    // that specific message so the customer knows to pick a different
+    // size/qty — not just "check your details," which would be confusing
+    // when their details were fine.
+    const stockMsg = err && err.body && err.body.items;
+    showOrderError(stockMsg || 'Sorry, we could not place your order. Please check your details and try again.');
     if (placeBtn) { placeBtn.disabled = false; placeBtn.textContent = paymentMethod === 'cod' ? 'Place order' : 'Proceed to payment'; }
     return;
   }

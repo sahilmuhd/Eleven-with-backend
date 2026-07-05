@@ -1,8 +1,20 @@
+import re
+from collections import defaultdict
+
 from django.contrib.auth import authenticate
 from django.contrib.auth.models import User
 from django.contrib.auth.password_validation import validate_password
+from django.db import transaction
 from rest_framework import serializers
 from .models import Product, ProductImage, Category, Order, OrderItem, Customer
+
+
+def _size_key(raw):
+    """Extracts the plain size number ('8', '8.5', ...) from whatever the
+    frontend sends (e.g. 'UK 8'), so it matches the string keys used in
+    Product.stock regardless of exact label formatting."""
+    match = re.search(r'[\d.]+', str(raw))
+    return match.group(0) if match else str(raw).strip()
 
 
 class RegisterSerializer(serializers.Serializer):
@@ -62,13 +74,21 @@ class ProductSerializer(serializers.ModelSerializer):
     images = serializers.SerializerMethodField()
     isNew = serializers.BooleanField(source='is_new')
     onSale = serializers.BooleanField(source='on_sale')
-    inStock = serializers.BooleanField(source='in_stock')
+    # True only if the manual override is on AND at least one size actually
+    # has stock left — so this flips to false automatically once the last
+    # pair sells, instead of needing someone to remember to toggle it.
+    inStock = serializers.SerializerMethodField()
+    # Which sizes can actually be added to cart right now (stock > 0).
+    # `sizes` stays as the full "sizes this shoe comes in" list so nothing
+    # that already reads it breaks; the frontend uses sizesInStock to grey
+    # out/disable the sold-out ones. See Product.sizes_in_stock() in models.py.
+    sizesInStock = serializers.SerializerMethodField()
 
     class Meta:
         model = Product
         fields = [
             'sku', 'name', 'brand', 'price', 'strike',
-            'cats', 'gender', 'sizes', 'isNew', 'onSale', 'inStock',
+            'cats', 'gender', 'sizes', 'sizesInStock', 'isNew', 'onSale', 'inStock',
             'images', 'colorway', 'desc',
         ]
 
@@ -77,6 +97,12 @@ class ProductSerializer(serializers.ModelSerializer):
 
     def get_gender(self, obj):
         return [obj.gender]
+
+    def get_inStock(self, obj):
+        return obj.in_stock and len(obj.sizes_in_stock()) > 0
+
+    def get_sizesInStock(self, obj):
+        return obj.sizes_in_stock()
 
     def get_images(self, obj):
         request = self.context.get('request')
@@ -137,12 +163,57 @@ class OrderCreateSerializer(serializers.Serializer):
         items_data = validated_data.pop('items')
         request = self.context.get('request')
         user = request.user if request and request.user.is_authenticated else None
-        order = Order.objects.create(user=user, **validated_data)
-        for item in items_data:
-            # look up the real Product row if the SKU still exists, so we
-            # can link it — but always keep the snapshot fields too.
-            product = Product.objects.filter(sku=item['sku']).first()
-            OrderItem.objects.create(order=order, product=product, **item)
+        payment_method = validated_data.get('payment_method', 'razorpay')
+
+        with transaction.atomic():
+            # Lock every Product row this order touches (ordered by sku so
+            # two concurrent orders always acquire locks in the same order —
+            # avoids deadlocks) before checking stock. Nothing is written
+            # yet at this point — this is just an upfront sanity check so
+            # an obviously-unavailable order is rejected immediately rather
+            # than after the customer pays.
+            skus = sorted(set(item['sku'] for item in items_data))
+            products = {
+                p.sku: p for p in Product.objects.select_for_update().filter(sku__in=skus)
+            }
+
+            # Combine quantities per (sku, size) first in case the same
+            # line appears twice, so we validate against the *total*
+            # requested rather than checking each line in isolation.
+            requested = defaultdict(int)
+            for item in items_data:
+                requested[(item['sku'], _size_key(item['size']))] += item['qty']
+
+            for (sku, size_key), qty in requested.items():
+                product = products.get(sku)
+                if product is None:
+                    continue  # product removed from catalog since being added to cart; let it through on snapshot data alone
+                available = int(product.stock.get(size_key, 0))
+                if available < qty:
+                    raise serializers.ValidationError({
+                        'items': f'Sorry, only {available} left in size {size_key} for "{product.name}". Please update your cart and try again.'
+                    })
+
+            # Cash on Delivery orders are placed immediately, so reserve the
+            # stock right now. Razorpay orders only reserve stock once
+            # payment is actually verified — see verify_payment_view in
+            # views.py — otherwise someone abandoning the payment popup
+            # would lock up stock that never actually sold.
+            if payment_method == 'cod':
+                for (sku, size_key), qty in requested.items():
+                    product = products.get(sku)
+                    if product is None:
+                        continue
+                    product.stock[size_key] = int(product.stock.get(size_key, 0)) - qty
+                    product.save(update_fields=['stock'])
+
+            order = Order.objects.create(user=user, **validated_data)
+            for item in items_data:
+                # look up the real Product row if the SKU still exists, so we
+                # can link it — but always keep the snapshot fields too.
+                product = products.get(item['sku'])
+                OrderItem.objects.create(order=order, product=product, **item)
+
         return order
 
 

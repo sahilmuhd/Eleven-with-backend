@@ -1,4 +1,5 @@
 import random
+import re
 import string
 
 from django.conf import settings
@@ -60,11 +61,22 @@ class Product(models.Model):
     # Stored as a JSON list of ints, e.g. [7, 8, 9, 10] — mirrors the frontend shape exactly
     sizes = models.JSONField(default=list, help_text='List of available UK sizes, e.g. [7, 8, 9, 10]')
 
+    # How many pairs are left *per size*, e.g. {"7": 3, "8": 0, "9": 5}.
+    # Keys are strings (JSON requires string keys) matching entries in
+    # `sizes`. A size with 0 (or missing) stock is treated as sold out even
+    # if it's still listed in `sizes` — see get_sizes_in_stock() below and
+    # OrderViewSet.create() in views.py, which validates + decrements this
+    # atomically so two simultaneous orders can't both grab the last pair.
+    stock = models.JSONField(default=dict, blank=True, help_text='Stock per size, e.g. {"7": 3, "8": 0, "9": 5}')
+
     colorway = models.CharField(max_length=120, blank=True)
     desc = models.TextField(blank=True)
 
     is_new = models.BooleanField(default=False)
     on_sale = models.BooleanField(default=False)
+    # Manual override to hide/show a product regardless of per-size stock
+    # (e.g. discontinuing something that still has a few pairs left).
+    # Actual sellability of a given size is still governed by `stock`.
     in_stock = models.BooleanField(default=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
@@ -75,6 +87,13 @@ class Product(models.Model):
 
     def __str__(self):
         return f'{self.name} ({self.sku})'
+
+    def sizes_in_stock(self):
+        """Sizes with 1+ pairs actually left, in the same order as `sizes`.
+        Used by the API so the frontend can disable sold-out sizes instead
+        of just trusting the static `sizes` list, which only says a size
+        exists for this product at all — not that any are left."""
+        return [s for s in self.sizes if int(self.stock.get(str(s), 0)) > 0]
 
 
 class ProductImage(models.Model):
@@ -161,6 +180,11 @@ class Order(models.Model):
     razorpay_payment_id = models.CharField(max_length=64, blank=True)
     razorpay_signature = models.CharField(max_length=128, blank=True)
 
+    # Set once restore_stock() has run for this order, so a cancelled order
+    # can never have its stock "returned" twice (e.g. if cancelled more
+    # than once, or cancelled after an earlier failed-payment cleanup).
+    stock_restored = models.BooleanField(default=False)
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -169,6 +193,25 @@ class Order(models.Model):
 
     def __str__(self):
         return self.order_id
+
+    def restore_stock(self):
+        """Adds each line item's qty back to Product.stock — used when an
+        order never actually completes (Razorpay order creation failed
+        right after stock was reserved) or is cancelled after being placed.
+        Safe to call more than once; only actually restores stock the first
+        time (see stock_restored above)."""
+        if self.stock_restored:
+            return
+        for item in self.items.select_related('product'):
+            product = item.product
+            if product is None:
+                continue
+            size_key = re.search(r'[\d.]+', str(item.size))
+            size_key = size_key.group(0) if size_key else str(item.size).strip()
+            product.stock[size_key] = int(product.stock.get(size_key, 0)) + item.qty
+            product.save(update_fields=['stock'])
+        self.stock_restored = True
+        self.save(update_fields=['stock_restored'])
 
 
 class OrderItem(models.Model):

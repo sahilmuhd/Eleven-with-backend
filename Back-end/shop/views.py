@@ -2,10 +2,12 @@ import base64
 import hashlib
 import hmac
 import json
+import re
 import urllib.error
 import urllib.request
 
 from django.conf import settings
+from django.db import transaction
 from rest_framework import viewsets, permissions, status
 from rest_framework.authtoken.models import Token
 from rest_framework.decorators import api_view, permission_classes
@@ -170,6 +172,25 @@ def verify_payment_view(request):
     order.razorpay_payment_id = d['razorpay_payment_id']
     order.razorpay_signature = d['razorpay_signature']
     order.save(update_fields=['payment_status', 'razorpay_payment_id', 'razorpay_signature'])
+
+    # Only now — payment actually confirmed — reserve the stock. (COD
+    # orders reserve theirs immediately in OrderCreateSerializer.create()
+    # instead, since there's no "maybe" step to wait on.) If two people
+    # happened to both reach this point for the last pair of a size, one
+    # will oversell here; that's a rare edge case for a store this size and
+    # far better than blocking an already-successful payment — it just
+    # means an occasional order needs a manual size swap/refund, which
+    # shows up as negative stock in the admin so it's easy to spot.
+    with transaction.atomic():
+        for item in order.items.select_related('product').select_for_update():
+            product = item.product
+            if product is None:
+                continue
+            size_key = re.search(r'[\d.]+', str(item.size))
+            size_key = size_key.group(0) if size_key else str(item.size).strip()
+            product.stock[size_key] = int(product.stock.get(size_key, 0)) - item.qty
+            product.save(update_fields=['stock'])
+
     return Response(OrderSerializer(order).data)
 
 

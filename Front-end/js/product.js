@@ -235,14 +235,20 @@ const angles = [
   // ---- Sizes ----
   var sizeGrid = document.querySelector('.size-grid-pdp');
   if(sizeGrid){
+    var inStockSizes = Array.isArray(p.sizesInStock) ? p.sizesInStock : p.sizes;
+    var firstAvailableIdx = p.sizes.findIndex(function(s){ return inStockSizes.indexOf(s) !== -1; });
+    if(firstAvailableIdx === -1) firstAvailableIdx = 0; // everything sold out — nothing to preselect meaningfully
+
     sizeGrid.innerHTML = p.sizes.map(function(s, i){
-      return '<button class="size-btn-pdp'+(i===0?' selected':'')+'">'+s+'</button>';
+      var oos = inStockSizes.indexOf(s) === -1;
+      var cls = 'size-btn-pdp' + (i === firstAvailableIdx && !oos ? ' selected' : '') + (oos ? ' oos' : '');
+      return '<button class="'+cls+'"'+(oos ? ' disabled title="Out of stock"' : '')+'>'+s+'</button>';
     }).join('');
-    var newBtns = sizeGrid.querySelectorAll('.size-btn-pdp');
-    var realSelectedSize = 'UK ' + p.sizes[0];
+    var newBtns = sizeGrid.querySelectorAll('.size-btn-pdp:not(.oos)');
+    var realSelectedSize = inStockSizes.length ? ('UK ' + p.sizes[firstAvailableIdx]) : null;
     newBtns.forEach(function(btn){
       btn.addEventListener('click', function(){
-        newBtns.forEach(function(b){ b.classList.remove('selected'); });
+        sizeGrid.querySelectorAll('.size-btn-pdp').forEach(function(b){ b.classList.remove('selected'); });
         btn.classList.add('selected');
         realSelectedSize = 'UK ' + btn.textContent.trim();
         var se = document.getElementById('sizeError');
@@ -251,6 +257,20 @@ const angles = [
         if(ss) ss.textContent = p.name + ' · ' + realSelectedSize;
       });
     });
+
+    // ---- Fully sold out: disable purchase entirely instead of letting
+    // someone add a phantom size to cart ----
+    if(!inStockSizes.length){
+      var addBtn = document.querySelector('.btn-add-cart');
+      var buyBtn = document.querySelector('.btn-buy-now');
+      [addBtn, buyBtn].forEach(function(b){
+        if(!b) return;
+        b.disabled = true;
+        b.textContent = 'Out of stock';
+        b.style.opacity = '0.5';
+        b.style.cursor = 'not-allowed';
+      });
+    }
 
     // ---- Override add to cart / buy now / wishlist for this real product ----
     function realAddToCart(){

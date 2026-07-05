@@ -76,9 +76,12 @@ async function submitElevenOrder(payload){
     body: JSON.stringify(payload)
   });
   if(!res.ok){
-    let detail = 'Order could not be placed (HTTP ' + res.status + ')';
-    try { detail = JSON.stringify(await res.json()); } catch(e){ /* ignore */ }
-    throw new Error(detail);
+    let body = null;
+    try { body = await res.json(); } catch(e){ /* ignore, body stays null */ }
+    const err = new Error((body && JSON.stringify(body)) || ('Order could not be placed (HTTP ' + res.status + ')'));
+    err.status = res.status;
+    err.body = body; // e.g. { items: 'Sorry, only 2 left in size 8 for "Stride Runner". ...' } for a stock validation failure
+    throw err;
   }
   return await res.json();
 }
