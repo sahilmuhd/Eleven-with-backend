@@ -24,6 +24,14 @@ DEBUG = os.environ.get('DEBUG', 'False') == 'True'
 RAZORPAY_KEY_ID = os.environ.get('RAZORPAY_KEY_ID', '')
 RAZORPAY_KEY_SECRET = os.environ.get('RAZORPAY_KEY_SECRET', '')
 
+# Resend — order confirmation (to customer) + new-order alert (to you).
+# See shop/notifications.py for details, including the sandbox-sender
+# limitation (customer emails won't actually deliver until you verify your
+# own domain in Resend and set RESEND_FROM_EMAIL to something on it).
+RESEND_API_KEY = os.environ.get('RESEND_API_KEY', '')
+RESEND_FROM_EMAIL = os.environ.get('RESEND_FROM_EMAIL', 'ELEVEN <onboarding@resend.dev>')
+SELLER_NOTIFY_EMAIL = os.environ.get('SELLER_NOTIFY_EMAIL', '')
+
 ALLOWED_HOSTS = []
 # Render sets this automatically to your service's *.onrender.com hostname.
 RENDER_EXTERNAL_HOSTNAME = os.environ.get('RENDER_EXTERNAL_HOSTNAME')

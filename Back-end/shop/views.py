@@ -15,6 +15,7 @@ from rest_framework.response import Response
 from rest_framework.throttling import AnonRateThrottle
 
 from .models import Product, Order
+from .notifications import send_order_confirmation_email, send_seller_alert_email
 from .serializers import (
     ProductSerializer, OrderSerializer, OrderCreateSerializer, TrackOrderSerializer,
     RegisterSerializer, LoginSerializer, CustomerSerializer,
@@ -134,6 +135,8 @@ class OrderViewSet(viewsets.ModelViewSet):
         # stays payment_status='pending' until staff mark it paid once the
         # cash is actually collected on delivery.
         if order.payment_method == 'cod':
+            send_order_confirmation_email(order)
+            send_seller_alert_email(order)
             return Response(OrderSerializer(order).data, status=status.HTTP_201_CREATED)
 
         # Payment is Razorpay-only: create the matching Razorpay order right
@@ -211,6 +214,9 @@ def verify_payment_view(request):
             size_key = size_key.group(0) if size_key else str(item.size).strip()
             product.stock[size_key] = int(product.stock.get(size_key, 0)) - item.qty
             product.save(update_fields=['stock'])
+
+    send_order_confirmation_email(order)
+    send_seller_alert_email(order)
 
     return Response(OrderSerializer(order).data)
 
