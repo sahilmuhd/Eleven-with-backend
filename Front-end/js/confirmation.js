@@ -1,3 +1,7 @@
+function esc(s){
+  return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
 // Populate confirmation from the real order (fetched from the backend),
 // falling back to the localStorage snapshot saved right after checkout
 // if the order can't be reached (offline, etc.) — same pattern used
@@ -107,8 +111,8 @@
     itemsEl.innerHTML = items.map(function(it){
       var img = imgFor(it.sku);
       return '<div style="display:flex;align-items:center;gap:14px;padding:14px 24px;border-bottom:1px solid var(--line);font-size:13px;">'
-        + '<div class="item-art" style="overflow:hidden;">' + (img ? '<img src="'+img+'" alt="'+it.name+'" style="width:100%;height:100%;object-fit:cover;display:block;">' : '') + '</div>'
-        + '<span style="flex:1;display:flex;justify-content:space-between;"><strong>'+it.name+'</strong> &middot; '+it.size+' &times;'+it.qty+'</span>'
+        + '<div class="item-art" style="overflow:hidden;">' + (img ? '<img src="'+img+'" alt="'+esc(it.name)+'" style="width:100%;height:100%;object-fit:cover;display:block;">' : '') + '</div>'
+        + '<span style="flex:1;display:flex;justify-content:space-between;"><strong>'+esc(it.name)+'</strong> &middot; '+esc(it.size)+' &times;'+it.qty+'</span>'
         + '</div>';
     }).join('');
   }
@@ -118,7 +122,7 @@
   if (totalsEl) {
     var rows = '<div class="totals-row"><span>Subtotal</span><span class="mono">&#x20B9;'+Math.round(subtotal).toLocaleString('en-IN')+'</span></div>';
     if (discount > 0) {
-      rows += '<div class="totals-row"><span>Discount'+(coupon?' ('+coupon+')':'')+'</span><span class="mono" style="color:var(--gold);">&minus;&#x20B9;'+Math.round(discount).toLocaleString('en-IN')+'</span></div>';
+      rows += '<div class="totals-row"><span>Discount'+(coupon?' ('+esc(coupon)+')':'')+'</span><span class="mono" style="color:var(--gold);">&minus;&#x20B9;'+Math.round(discount).toLocaleString('en-IN')+'</span></div>';
     }
     rows += '<div class="totals-row"><span>Shipping</span><span class="mono">Free</span></div>';
     var totalLabel = paymentMethod === 'cod' ? 'Pay on delivery' : (paymentStatus === 'paid' ? 'Total paid' : 'Total');

@@ -15,7 +15,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # `runserver` keep working exactly as before.
 SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-CHANGE-ME-before-deploying')
 
-DEBUG = os.environ.get('DEBUG', 'True') == 'True'
+DEBUG = os.environ.get('DEBUG', 'False') == 'True'
 
 # Razorpay — set these as real environment variables (Render dashboard, or
 # a local .env) once you have API keys. Left blank here on purpose: never
@@ -33,6 +33,27 @@ if RENDER_EXTERNAL_HOSTNAME:
 ALLOWED_HOSTS += [h.strip() for h in os.environ.get('ALLOWED_HOSTS', '').split(',') if h.strip()]
 if not ALLOWED_HOSTS:
     ALLOWED_HOSTS = ['*']  # local dev only — always set ALLOWED_HOSTS explicitly in production
+
+# ---- HTTPS enforcement (production only) -----------------------------
+# Gated on RENDER_EXTERNAL_HOSTNAME rather than "not DEBUG" so it's tied
+# to "are we actually running behind Render's HTTPS-terminating proxy"
+# rather than just the DEBUG flag — this way flipping DEBUG locally never
+# accidentally triggers an HTTPS redirect loop against plain http://127.0.0.1.
+IS_PRODUCTION = bool(RENDER_EXTERNAL_HOSTNAME)
+if IS_PRODUCTION:
+    # Render terminates TLS in front of the app and forwards over plain
+    # HTTP internally, adding this header so Django can tell the original
+    # request was HTTPS. Only trust this header when we know we're
+    # actually behind Render's proxy (IS_PRODUCTION) — trusting it
+    # unconditionally would let anyone spoof "https" by just setting the
+    # header themselves against a non-proxied server.
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+    SECURE_SSL_REDIRECT = True
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_HSTS_SECONDS = 31536000  # 1 year, standard once you're confident HTTPS is solid
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
 
 # ---- APPS -------------------------------------------------------------
 INSTALLED_APPS = [
@@ -132,6 +153,22 @@ REST_FRAMEWORK = {
         'rest_framework.authentication.TokenAuthentication',
         'rest_framework.authentication.SessionAuthentication',  # lets staff use /admin/ + browsable API
     ],
+    # General anti-abuse: applies to every endpoint by default. login/
+    # register/track-order additionally use 'login'/'register'/'track_order'
+    # scoped throttles (tighter limits) via throttle_classes on those
+    # specific views in views.py — this is what actually stops someone
+    # from brute-forcing a password or spamming fake orders/lookups.
+    'DEFAULT_THROTTLE_CLASSES': [
+        'rest_framework.throttling.AnonRateThrottle',
+        'rest_framework.throttling.UserRateThrottle',
+    ],
+    'DEFAULT_THROTTLE_RATES': {
+        'anon': '100/hour',
+        'user': '1000/hour',
+        'login': '10/hour',
+        'register': '10/hour',
+        'track_order': '20/hour',
+    },
 }
 
 # ---- CORS -------------------------------------------------------------

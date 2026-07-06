@@ -10,8 +10,9 @@ from django.conf import settings
 from django.db import transaction
 from rest_framework import viewsets, permissions, status
 from rest_framework.authtoken.models import Token
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, permission_classes, throttle_classes
 from rest_framework.response import Response
+from rest_framework.throttling import AnonRateThrottle
 
 from .models import Product, Order
 from .serializers import (
@@ -19,6 +20,26 @@ from .serializers import (
     RegisterSerializer, LoginSerializer, CustomerSerializer,
     CartSerializer, WishlistSerializer, VerifyPaymentSerializer,
 )
+
+
+# Per-IP limits tighter than the site-wide 'anon' default (see
+# DEFAULT_THROTTLE_RATES in settings.py) for the three endpoints that are
+# actually worth brute-forcing/spamming: guessing a password, mass-creating
+# accounts, and guessing order_id+phone combinations. Subclassing
+# AnonRateThrottle (rather than ScopedRateThrottle) is deliberate — DRF's
+# @api_view decorator doesn't forward a `throttle_scope` attribute for
+# function-based views, so ScopedRateThrottle would silently never throttle
+# here. A fixed `scope` on the throttle class itself works correctly instead.
+class LoginRateThrottle(AnonRateThrottle):
+    scope = 'login'
+
+
+class RegisterRateThrottle(AnonRateThrottle):
+    scope = 'register'
+
+
+class TrackOrderRateThrottle(AnonRateThrottle):
+    scope = 'track_order'
 
 
 class RazorpayError(Exception):
@@ -196,12 +217,15 @@ def verify_payment_view(request):
 
 @api_view(['POST'])
 @permission_classes([permissions.AllowAny])
+@throttle_classes([TrackOrderRateThrottle])
 def track_order(request):
     """
     POST /api/track/  { "order_id": "ELV-12345", "phone": "9876543210" }
     Public order-status lookup — no login needed, but requires both the
     order ID and the phone number used at checkout, so one customer can't
-    browse another's order by guessing IDs.
+    browse another's order by guessing IDs. Rate-limited (see
+    DEFAULT_THROTTLE_RATES in settings.py) since it's an unauthenticated,
+    guessable-ID lookup otherwise open to brute-forcing.
     """
     serializer = TrackOrderSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
@@ -219,6 +243,7 @@ def track_order(request):
 
 @api_view(['POST'])
 @permission_classes([permissions.AllowAny])
+@throttle_classes([RegisterRateThrottle])
 def register_view(request):
     """POST /api/auth/register/  { name, email, phone, password }"""
     serializer = RegisterSerializer(data=request.data)
@@ -232,6 +257,7 @@ def register_view(request):
 
 @api_view(['POST'])
 @permission_classes([permissions.AllowAny])
+@throttle_classes([LoginRateThrottle])
 def login_view(request):
     """POST /api/auth/login/  { email, password }"""
     serializer = LoginSerializer(data=request.data)
