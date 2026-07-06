@@ -56,6 +56,10 @@ def _send_email(to, subject, html):
         headers={
             'Authorization': f'Bearer {api_key}',
             'Content-Type': 'application/json',
+            # Resend rejects requests with no User-Agent (HTTP 403, error
+            # code 1010) — Python's urllib doesn't reliably send one on its
+            # own in every environment, so set it explicitly.
+            'User-Agent': 'Eleven-Brand/1.0 (+https://eleven-frontend.onrender.com)',
         },
     )
     try:
