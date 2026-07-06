@@ -99,8 +99,8 @@ function esc(s){
   var heroP = document.querySelector('.confirm-hero p');
   if (heroP) {
     heroP.textContent = paymentMethod === 'cod'
-      ? 'A confirmation has been sent to your email and WhatsApp. Please keep ' + ELEVEN.fmt(total) + ' ready in cash for delivery.'
-      : 'A confirmation has been sent to your email and WhatsApp. We\'ll notify you again the moment your pair ships from Bangalore.';
+      ? 'A confirmation has been sent to your email. Please keep ' + ELEVEN.fmt(total) + ' ready in cash for delivery.'
+      : 'A confirmation has been sent to your email. We\'ll notify you again the moment your pair ships from Bangalore.';
   }
 
   // ---- Items ----
