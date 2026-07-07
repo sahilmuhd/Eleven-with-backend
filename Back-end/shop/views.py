@@ -43,6 +43,10 @@ class TrackOrderRateThrottle(AnonRateThrottle):
     scope = 'track_order'
 
 
+class CouponValidateRateThrottle(AnonRateThrottle):
+    scope = 'coupon_validate'
+
+
 class RazorpayError(Exception):
     pass
 
@@ -245,6 +249,41 @@ def track_order(request):
             status=status.HTTP_404_NOT_FOUND,
         )
     return Response(OrderSerializer(order).data)
+
+
+@api_view(['POST'])
+@permission_classes([permissions.AllowAny])
+@throttle_classes([CouponValidateRateThrottle])
+def validate_coupon(request):
+    """
+    POST /api/coupons/validate/  { "code": "BUILT10", "subtotal": 5000 }
+    Lets the cart/checkout pages preview a coupon's discount before the
+    customer actually places an order. This is a preview only — placing an
+    order re-checks the same coupon independently in
+    OrderCreateSerializer.create() (serializers.py), so nothing from this
+    endpoint is trusted later; a tampered response here couldn't get a fake
+    discount actually charged.
+    """
+    serializer = CouponValidateSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    code = serializer.validated_data['code'].strip()
+    subtotal = serializer.validated_data['subtotal']
+
+    coupon = Coupon.objects.filter(code__iexact=code).first()
+    if coupon is None:
+        return Response({'valid': False, 'detail': 'Invalid or expired code.'}, status=status.HTTP_404_NOT_FOUND)
+
+    ok, reason = coupon.is_valid_for(subtotal)
+    if not ok:
+        return Response({'valid': False, 'detail': reason}, status=status.HTTP_400_BAD_REQUEST)
+
+    discount_amount = round(subtotal * coupon.discount_percent / 100)
+    return Response({
+        'valid': True,
+        'code': coupon.code,
+        'discount_percent': coupon.discount_percent,
+        'discount_amount': discount_amount,
+    })
 
 
 @api_view(['POST'])

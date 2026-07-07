@@ -181,6 +181,7 @@ REST_FRAMEWORK = {
         'login': '10/hour',
         'register': '10/hour',
         'track_order': '20/hour',
+        'coupon_validate': '30/hour',
     },
 }
 

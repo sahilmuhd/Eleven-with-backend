@@ -114,3 +114,23 @@ async function trackElevenOrder(orderId, phone){
   if(!res.ok) return null;
   return await res.json();
 }
+
+/* Checks a coupon code against the real backend (shop/models.py Coupon
+   table), rather than the old hardcoded 'BUILT10' check that used to live
+   entirely in cart.js. Returns { valid: true, discount_percent,
+   discount_amount } or { valid: false, detail: '...' } — never throws, so
+   callers can just check `.valid` without a try/catch. */
+async function validateElevenCoupon(code, subtotal){
+  try {
+    const res = await fetch(ELEVEN_API_BASE + '/coupons/validate/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code, subtotal: Math.round(subtotal) })
+    });
+    const data = await res.json();
+    if(!res.ok) return { valid: false, detail: (data && data.detail) || 'Invalid or expired code.' };
+    return data;
+  } catch (e) {
+    return { valid: false, detail: 'Could not check that code right now. Please try again.' };
+  }
+}

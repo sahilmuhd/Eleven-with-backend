@@ -2,7 +2,7 @@ from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 
 from .views import (
-    ProductViewSet, OrderViewSet, track_order,
+    ProductViewSet, OrderViewSet, track_order, validate_coupon,
     register_view, login_view, me_view, my_orders_view,
     cart_view, wishlist_view, verify_payment_view,
 )
@@ -17,6 +17,7 @@ urlpatterns = [
     path('orders/verify-payment/', verify_payment_view, name='verify-payment'),
     path('', include(router.urls)),
     path('track/', track_order, name='track-order'),
+    path('coupons/validate/', validate_coupon, name='coupon-validate'),
     path('auth/register/', register_view, name='auth-register'),
     path('auth/login/', login_view, name='auth-login'),
     path('auth/me/', me_view, name='auth-me'),

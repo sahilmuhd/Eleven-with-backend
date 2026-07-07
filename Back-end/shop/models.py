@@ -4,6 +4,7 @@ import string
 
 from django.conf import settings
 from django.db import models
+from django.utils import timezone
 
 
 class Customer(models.Model):
@@ -37,6 +38,40 @@ class Category(models.Model):
 
     def __str__(self):
         return self.name
+
+
+class Coupon(models.Model):
+    """
+    Real discount codes, managed from /admin/ — replaces the old hardcoded
+    'BUILT10' check that used to live entirely in cart.js. The frontend now
+    calls /api/coupons/validate/ to check a code and preview the discount,
+    but the *authoritative* check happens again in
+    OrderCreateSerializer.create() (serializers.py) at the moment an order
+    is actually placed — the frontend's number is only ever a preview,
+    never trusted for what gets charged.
+    """
+    code = models.CharField(max_length=30, unique=True, help_text='Case-insensitive, e.g. BUILT10')
+    discount_percent = models.PositiveIntegerField(help_text='e.g. 10 for 10% off')
+    active = models.BooleanField(default=True)
+    # Optional constraints — leave blank for "no limit".
+    min_order_value = models.PositiveIntegerField(null=True, blank=True, help_text='Minimum subtotal (INR) required to use this code')
+    valid_until = models.DateTimeField(null=True, blank=True, help_text='Leave blank for no expiry')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f'{self.code} ({self.discount_percent}% off)'
+
+    def is_valid_for(self, subtotal):
+        """Returns (True, '') or (False, 'reason') — used by both the
+        preview endpoint and the real order-creation check, so the two
+        can never disagree about whether a code is usable."""
+        if not self.active:
+            return False, 'This code is no longer active.'
+        if self.valid_until and timezone.now() > self.valid_until:
+            return False, 'This code has expired.'
+        if self.min_order_value and subtotal < self.min_order_value:
+            return False, f'This code needs a minimum order of \u20b9{self.min_order_value:,}.'
+        return True, ''
 
 
 class Product(models.Model):

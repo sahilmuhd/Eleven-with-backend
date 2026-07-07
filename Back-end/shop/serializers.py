@@ -6,7 +6,7 @@ from django.contrib.auth.models import User
 from django.contrib.auth.password_validation import validate_password
 from django.db import transaction
 from rest_framework import serializers
-from .models import Product, ProductImage, Category, Order, OrderItem, Customer
+from .models import Product, ProductImage, Category, Order, OrderItem, Customer, Coupon
 
 
 def _size_key(raw):
@@ -194,6 +194,41 @@ class OrderCreateSerializer(serializers.Serializer):
                         'items': f'Sorry, only {available} left in size {size_key} for "{product.name}". Please update your cart and try again.'
                     })
 
+            # ---- Recompute money server-side. Never trust the client's
+            # subtotal/discount/total — those three fields in validated_data
+            # are only ever a *preview* the frontend showed; what actually
+            # gets saved (and, for Razorpay, what actually gets charged via
+            # order.total in views.py) is computed fresh right here from
+            # real Product prices and a real Coupon lookup. This is what
+            # stops someone from e.g. setting a fake 99% discount via
+            # devtools/localStorage and having it actually honored. ----
+            real_subtotal = 0
+            for item in items_data:
+                product = products.get(item['sku'])
+                # Use the live catalog price when the product still exists;
+                # only fall back to the client's submitted price for a SKU
+                # that's been removed from the catalog entirely, since
+                # there's no authoritative price left to check against.
+                unit_price = product.price if product is not None else item['price']
+                item['price'] = unit_price  # snapshot the *real* price onto the OrderItem below, not whatever the client sent
+                real_subtotal += unit_price * item['qty']
+
+            coupon_code = (validated_data.get('coupon_code') or '').strip()
+            real_discount = 0
+            if coupon_code:
+                coupon = Coupon.objects.filter(code__iexact=coupon_code).first()
+                if coupon is None:
+                    raise serializers.ValidationError({'coupon_code': 'This code isn\u2019t valid.'})
+                ok, reason = coupon.is_valid_for(real_subtotal)
+                if not ok:
+                    raise serializers.ValidationError({'coupon_code': reason})
+                real_discount = round(real_subtotal * coupon.discount_percent / 100)
+
+            real_total = real_subtotal - real_discount
+            validated_data['subtotal'] = real_subtotal
+            validated_data['discount'] = real_discount
+            validated_data['total'] = real_total
+
             # Cash on Delivery orders are placed immediately, so reserve the
             # stock right now. Razorpay orders only reserve stock once
             # payment is actually verified — see verify_payment_view in
@@ -253,3 +288,13 @@ class TrackOrderSerializer(serializers.Serializer):
     """What the 'track my order' page POSTs to look up status."""
     order_id = serializers.CharField()
     phone = serializers.CharField()
+
+
+class CouponValidateSerializer(serializers.Serializer):
+    """What cart.html/checkout.html POST to preview a coupon's discount
+    before actually placing an order. This is purely a preview for
+    display — OrderCreateSerializer.create() above re-validates the same
+    coupon independently at order-creation time, so nothing here needs to
+    be trusted later."""
+    code = serializers.CharField()
+    subtotal = serializers.IntegerField(min_value=0)

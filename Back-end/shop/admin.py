@@ -4,7 +4,7 @@ from django import forms
 from django.contrib import admin
 from django.utils.safestring import mark_safe
 
-from .models import Category, Product, ProductImage, Order, OrderItem, Customer
+from .models import Category, Product, ProductImage, Order, OrderItem, Customer, Coupon
 
 
 class StockWidget(forms.Textarea):
@@ -118,6 +118,14 @@ class ProductAdmin(admin.ModelAdmin):
 @admin.register(Category)
 class CategoryAdmin(admin.ModelAdmin):
     search_fields = ['name']
+
+
+@admin.register(Coupon)
+class CouponAdmin(admin.ModelAdmin):
+    list_display = ['code', 'discount_percent', 'active', 'min_order_value', 'valid_until', 'created_at']
+    list_editable = ['active']
+    list_filter = ['active']
+    search_fields = ['code']
 
 
 class OrderItemInline(admin.TabularInline):

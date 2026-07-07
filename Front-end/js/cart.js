@@ -6,6 +6,7 @@ const shoeShapes = [
   ];
 
   let discountPct = Number(localStorage.getItem('eleven_discount')) || 0;
+  let appliedCouponCode = localStorage.getItem('eleven_coupon') || '';
 
   function getShape(sku) {
     if(sku.startsWith('RN')) return 0;
@@ -78,19 +79,28 @@ const shoeShapes = [
     document.getElementById('couponApplied').style.display = 'none';
     renderCart();
   }
-  function applyCoupon(){
+  async function applyCoupon(){
     const code = document.getElementById('couponInput').value.trim().toUpperCase();
-    if(code === 'BUILT10'){
-      discountPct = 10;
+    if(!code) return;
+    const applyBtn = document.querySelector('.coupon-apply');
+    if(applyBtn){ applyBtn.disabled = true; applyBtn.textContent = 'Checking…'; }
+    const result = await validateElevenCoupon(code, ELEVEN.cartSubtotal());
+    if(applyBtn){ applyBtn.disabled = false; applyBtn.textContent = 'Apply'; }
+    if(result.valid){
+      discountPct = result.discount_percent;
+      appliedCouponCode = result.code;
+      const textEl = document.getElementById('couponAppliedText');
+      if(textEl) textEl.textContent = appliedCouponCode + ' applied — ' + discountPct + '% off';
       document.getElementById('couponRow').style.display = 'none';
       document.getElementById('couponApplied').style.display = 'flex';
-    } else if(code.length > 0){
-      ELEVEN.showToast('Invalid or expired code.');
+    } else {
+      ELEVEN.showToast(result.detail || 'Invalid or expired code.');
     }
     updateSummary();
   }
   function removeCoupon(){
     discountPct = 0;
+    appliedCouponCode = '';
     document.getElementById('couponInput').value = '';
     document.getElementById('couponRow').style.display = 'flex';
     document.getElementById('couponApplied').style.display = 'none';
@@ -111,10 +121,12 @@ const shoeShapes = [
       document.getElementById('discountRow').style.display = 'none';
     }
     // Save discount state for checkout
-    ELEVEN.setDiscount(discountPct, 'BUILT10');
+    ELEVEN.setDiscount(discountPct, appliedCouponCode);
   }
 
   if(discountPct > 0){
+    const textEl = document.getElementById('couponAppliedText');
+    if(textEl && appliedCouponCode) textEl.textContent = appliedCouponCode + ' applied — ' + discountPct + '% off';
     document.getElementById('couponRow').style.display = 'none';
     document.getElementById('couponApplied').style.display = 'flex';
   }
