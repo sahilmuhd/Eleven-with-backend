@@ -96,7 +96,12 @@ ROOT_URLCONF = 'eleven_backend.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        # Lets us override built-in templates (e.g. templates/admin/index.html,
+        # to add a link to the sales dashboard) — filesystem DIRS are checked
+        # before each app's own templates/ dir, so this takes priority over
+        # django.contrib.admin's default admin/index.html without needing to
+        # touch that app at all.
+        'DIRS': [BASE_DIR / 'templates'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [

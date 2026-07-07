@@ -1,5 +1,97 @@
+import json
+
+from django import forms
 from django.contrib import admin
+from django.utils.safestring import mark_safe
+
 from .models import Category, Product, ProductImage, Order, OrderItem, Customer
+
+
+class StockWidget(forms.Textarea):
+    """
+    Renders Product.stock (a {"7": 3, "8": 0, ...} JSON dict) as a row of
+    plain number inputs — one per UK size — instead of a raw JSON textarea,
+    which is what Django admin shows for any JSONField by default.
+
+    The real JSONField textarea stays in the DOM (just hidden), so Django's
+    normal validation/saving is completely untouched — this widget only
+    changes what the *person* sees and interacts with. A small inline
+    script keeps the hidden textarea's value in sync with the number
+    inputs as they're edited, and again right before the form submits as a
+    safety net.
+
+    Shows a fixed 3–13 UK size range rather than only the sizes already in
+    this specific product's `sizes` list — covers virtually every adult
+    shoe size in one go, and avoids a chicken-and-egg problem where adding
+    a brand-new size to `sizes` and setting its stock would otherwise need
+    two separate saves (once to add the size, a second time — after
+    reloading the page — to actually set its stock).
+    """
+    SIZE_RANGE = list(range(3, 14))  # UK 3–13
+
+    def render(self, name, value, attrs=None, renderer=None):
+        if isinstance(value, str):
+            try:
+                data = json.loads(value) if value else {}
+            except (ValueError, TypeError):
+                data = {}
+        else:
+            data = value or {}
+
+        attrs = dict(attrs or {})
+        textarea_id = attrs.get('id') or f'id_{name}'
+        attrs['id'] = textarea_id
+        # Keep a JS-safe version of the id for the sync function name below
+        # (Django ids are normally already underscore-only, but formsets
+        # can add hyphens — better safe than a silent JS syntax error).
+        js_safe_id = ''.join(c if c.isalnum() else '_' for c in textarea_id)
+
+        rows_html = ''.join(
+            f'<div style="display:flex; flex-direction:column; align-items:center; gap:4px;">'
+            f'<label style="font-size:11px; color:#888;">UK {size}</label>'
+            f'<input type="number" min="0" data-stock-size="{size}" '
+            f'value="{int(data.get(str(size), 0) or 0)}" '
+            f'style="width:56px; padding:5px; text-align:center;" '
+            f'oninput="window.__syncStock_{js_safe_id}()">'
+            f'</div>'
+            for size in self.SIZE_RANGE
+        )
+
+        # The hidden textarea is what actually gets submitted with the form
+        # — everything above is just a friendlier way to edit its value.
+        hidden_textarea = super().render(name, json.dumps(data), attrs)
+
+        script = f'''<script>
+        (function(){{
+          function sync(){{
+            var wrap = document.getElementById("{textarea_id}_stockwrap");
+            var out = {{}};
+            wrap.querySelectorAll("[data-stock-size]").forEach(function(inp){{
+              var v = parseInt(inp.value, 10) || 0;
+              if (v > 0) out[inp.getAttribute("data-stock-size")] = v;
+            }});
+            document.getElementById("{textarea_id}").value = JSON.stringify(out);
+          }}
+          window.__syncStock_{js_safe_id} = sync;
+          document.addEventListener("DOMContentLoaded", function(){{
+            var form = document.getElementById("{textarea_id}").closest("form");
+            if (form) form.addEventListener("submit", sync);
+          }});
+        }})();
+        </script>'''
+
+        return mark_safe(
+            f'<div id="{textarea_id}_stockwrap" style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:8px;">{rows_html}</div>'
+            f'<div style="display:none;">{hidden_textarea}</div>'
+            f'{script}'
+        )
+
+
+class ProductAdminForm(forms.ModelForm):
+    class Meta:
+        model = Product
+        fields = '__all__'
+        widgets = {'stock': StockWidget}
 
 
 @admin.register(Customer)
@@ -15,6 +107,7 @@ class ProductImageInline(admin.TabularInline):
 
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
+    form = ProductAdminForm
     list_display = ['name', 'sku', 'brand', 'price', 'gender', 'is_new', 'on_sale', 'in_stock']
     list_filter = ['gender', 'is_new', 'on_sale', 'in_stock', 'categories']
     search_fields = ['name', 'sku', 'brand']
