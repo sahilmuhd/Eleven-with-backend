@@ -1,0 +1,69 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  background: #0B0B0C;
+  color: #F7F5F0;
+  font-family: 'Inter', sans-serif;
+  overflow-x: hidden;
+}
+
+.font-display { font-family: 'Bebas Neue', sans-serif; letter-spacing: 0.01em; }
+
+@layer components {
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 bg-chalk text-ink font-semibold text-xs tracking-widest uppercase px-8 py-4 transition hover:bg-blue hover:text-chalk;
+  }
+  .btn-outline {
+    @apply inline-flex items-center justify-center gap-2 border border-steel/40 text-chalk font-semibold text-xs tracking-widest uppercase px-8 py-4 transition hover:border-chalk;
+  }
+  .input-field {
+    @apply w-full bg-charcoal border border-line px-4 py-3 text-sm text-chalk placeholder:text-steel-dim focus:outline-none focus:border-blue transition;
+  }
+  .label-eyebrow {
+    @apply text-[11px] tracking-[0.2em] uppercase text-steel-dim font-semibold;
+  }
+}
+
+::-webkit-scrollbar { width: 8px; }
+::-webkit-scrollbar-track { background: #0B0B0C; }
+::-webkit-scrollbar-thumb { background: #1B1B1D; }
+
+/* ---- Marquee ticker ---- */
+@keyframes marquee-scroll {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+.marquee-track {
+  display: flex;
+  width: max-content;
+  animation: marquee-scroll 28s linear infinite;
+}
+.marquee-track:hover { animation-play-state: paused; }
+
+/* ---- Hero entrance ---- */
+@keyframes hero-rise {
+  from { opacity: 0; transform: translateY(28px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-hero-rise {
+  animation: hero-rise 0.9s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* ---- Soft pulsing dot (limited drop indicator) ---- */
+@keyframes pulse-dot {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(201,163,104,0.5); }
+  50% { box-shadow: 0 0 0 6px rgba(201,163,104,0); }
+}
+.pulse-dot { animation: pulse-dot 2s ease-out infinite; }
+
+/* ---- Number count-up ticks (used on countdown digits) ---- */
+@keyframes digit-flip {
+  from { opacity: 0.3; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.digit-flip { animation: digit-flip 0.4s ease-out; }
+

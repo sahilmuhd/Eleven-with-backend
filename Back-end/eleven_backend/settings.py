@@ -193,6 +193,8 @@ CORS_ALLOWED_ORIGINS = [
     'http://localhost:5500',
     'http://127.0.0.1:5500',
     'http://localhost:3000',
+    'http://localhost:5173',
+    'http://127.0.0.1:5173',
 ] + [o.strip() for o in os.environ.get('CORS_ALLOWED_ORIGINS', '').split(',') if o.strip()]
 # While developing locally you can use this instead of the allowlist above:
 # CORS_ALLOW_ALL_ORIGINS = True
