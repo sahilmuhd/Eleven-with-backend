@@ -10,6 +10,8 @@ import Account from './pages/Account'
 import Wishlist from './pages/Wishlist'
 import Login from './pages/Login'
 import Register from './pages/Register'
+import ForgotPassword from './pages/ForgotPassword'
+import ResetPassword from './pages/ResetPassword'
 import Search from './pages/Search'
 import Track from './pages/Track'
 import Contact from './pages/Contact'
@@ -31,6 +33,8 @@ export default function App() {
         <Route path="/wishlist" element={<Wishlist />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password/:uid/:token" element={<ResetPassword />} />
         <Route path="/search" element={<Search />} />
         <Route path="/track" element={<Track />} />
         <Route path="/contact" element={<Contact />} />

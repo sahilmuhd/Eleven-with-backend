@@ -32,6 +32,11 @@ RESEND_API_KEY = os.environ.get('RESEND_API_KEY', '')
 RESEND_FROM_EMAIL = os.environ.get('RESEND_FROM_EMAIL', 'ELEVEN <onboarding@resend.dev>')
 SELLER_NOTIFY_EMAIL = os.environ.get('SELLER_NOTIFY_EMAIL', '')
 
+# Base URL of the deployed frontend (no trailing slash) — used to build the
+# password-reset link sent by email. Override via env var if the frontend
+# ever moves to a different Render service / custom domain.
+FRONTEND_URL = os.environ.get('FRONTEND_URL', 'https://eleven-frontend.onrender.com')
+
 ALLOWED_HOSTS = []
 # Render sets this automatically to your service's *.onrender.com hostname.
 RENDER_EXTERNAL_HOSTNAME = os.environ.get('RENDER_EXTERNAL_HOSTNAME')
@@ -182,6 +187,8 @@ REST_FRAMEWORK = {
         'register': '10/hour',
         'track_order': '20/hour',
         'coupon_validate': '30/hour',
+        'forgot_password': '10/hour',
+        'reset_password': '10/hour',
     },
 }
 

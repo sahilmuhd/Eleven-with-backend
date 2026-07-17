@@ -66,6 +66,28 @@ export async function loginRequest({ email, password }) {
   return data
 }
 
+export async function forgotPasswordRequest({ email }) {
+  const res = await fetch(API_BASE + '/auth/forgot-password/', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email }),
+  })
+  const data = await res.json()
+  if (!res.ok) throw new Error(firstError(data) || 'Could not send reset email.')
+  return data
+}
+
+export async function resetPasswordRequest({ uid, token, newPassword }) {
+  const res = await fetch(API_BASE + '/auth/reset-password/', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ uid, token, new_password: newPassword }),
+  })
+  const data = await res.json()
+  if (!res.ok) throw new Error(firstError(data) || 'Could not reset password.')
+  return data
+}
+
 export async function refreshSession() {
   const token = getToken()
   if (!token) return null

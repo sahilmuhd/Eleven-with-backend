@@ -7,7 +7,11 @@ import urllib.error
 import urllib.request
 
 from django.conf import settings
+from django.contrib.auth.models import User
+from django.contrib.auth.tokens import default_token_generator
 from django.db import transaction
+from django.utils.encoding import force_bytes, force_str
+from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 from rest_framework import viewsets, permissions, status
 from rest_framework.authtoken.models import Token
 from rest_framework.decorators import api_view, permission_classes, throttle_classes
@@ -15,11 +19,12 @@ from rest_framework.response import Response
 from rest_framework.throttling import AnonRateThrottle
 
 from .models import Product, Order
-from .notifications import send_order_confirmation_email, send_seller_alert_email
+from .notifications import send_order_confirmation_email, send_seller_alert_email, send_password_reset_email
 from .serializers import (
     ProductSerializer, OrderSerializer, OrderCreateSerializer, TrackOrderSerializer,
     RegisterSerializer, LoginSerializer, CustomerSerializer,
     CartSerializer, WishlistSerializer, VerifyPaymentSerializer,
+    ForgotPasswordSerializer, ResetPasswordSerializer,
 )
 
 
@@ -45,6 +50,14 @@ class TrackOrderRateThrottle(AnonRateThrottle):
 
 class CouponValidateRateThrottle(AnonRateThrottle):
     scope = 'coupon_validate'
+
+
+class ForgotPasswordRateThrottle(AnonRateThrottle):
+    scope = 'forgot_password'
+
+
+class ResetPasswordRateThrottle(AnonRateThrottle):
+    scope = 'reset_password'
 
 
 class RazorpayError(Exception):
@@ -319,6 +332,62 @@ def login_view(request):
 def me_view(request):
     """GET /api/auth/me/  — requires Authorization: Token <key>"""
     return Response(CustomerSerializer(request.user.customer).data)
+
+
+@api_view(['POST'])
+@permission_classes([permissions.AllowAny])
+@throttle_classes([ForgotPasswordRateThrottle])
+def forgot_password_view(request):
+    """POST /api/auth/forgot-password/  { email }
+
+    Always responds with the same generic message whether or not the email
+    is registered, so this endpoint can't be used to check which addresses
+    have accounts. If it *is* registered, emails a reset link built with
+    Django's built-in stateless token generator (no extra DB table needed —
+    the token embeds a hash of the user's password + last login, so it
+    naturally expires as soon as the password changes, and additionally
+    times out after PASSWORD_RESET_TIMEOUT, 3 days by default)."""
+    serializer = ForgotPasswordSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    email = serializer.validated_data['email'].strip().lower()
+
+    user = User.objects.filter(username=email).first()
+    if user:
+        uid = urlsafe_base64_encode(force_bytes(user.pk))
+        token = default_token_generator.make_token(user)
+        reset_url = f'{settings.FRONTEND_URL}/reset-password/{uid}/{token}'
+        send_password_reset_email(user, reset_url)
+
+    return Response({'detail': 'If an account exists for that email, a reset link has been sent.'})
+
+
+@api_view(['POST'])
+@permission_classes([permissions.AllowAny])
+@throttle_classes([ResetPasswordRateThrottle])
+def reset_password_view(request):
+    """POST /api/auth/reset-password/  { uid, token, new_password }
+
+    uid/token come straight from the link emailed by forgot_password_view
+    above. Rejects with a 400 (not the specific reason, to avoid leaking
+    info) if the uid doesn't decode to a real user or the token is
+    invalid/expired/already used."""
+    serializer = ResetPasswordSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    d = serializer.validated_data
+
+    try:
+        user_pk = force_str(urlsafe_base64_decode(d['uid']))
+        user = User.objects.get(pk=user_pk)
+    except (TypeError, ValueError, OverflowError, User.DoesNotExist):
+        user = None
+
+    if user is None or not default_token_generator.check_token(user, d['token']):
+        return Response({'detail': 'This reset link is invalid or has expired. Please request a new one.'},
+                         status=status.HTTP_400_BAD_REQUEST)
+
+    user.set_password(d['new_password'])
+    user.save(update_fields=['password'])
+    return Response({'detail': 'Your password has been reset. You can now log in.'})
 
 
 @api_view(['GET', 'PUT'])

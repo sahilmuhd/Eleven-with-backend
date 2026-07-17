@@ -5,6 +5,7 @@ from .views import (
     ProductViewSet, OrderViewSet, track_order, validate_coupon,
     register_view, login_view, me_view, my_orders_view,
     cart_view, wishlist_view, verify_payment_view,
+    forgot_password_view, reset_password_view,
 )
 
 router = DefaultRouter()
@@ -21,6 +22,8 @@ urlpatterns = [
     path('auth/register/', register_view, name='auth-register'),
     path('auth/login/', login_view, name='auth-login'),
     path('auth/me/', me_view, name='auth-me'),
+    path('auth/forgot-password/', forgot_password_view, name='auth-forgot-password'),
+    path('auth/reset-password/', reset_password_view, name='auth-reset-password'),
     path('my-orders/', my_orders_view, name='my-orders'),
     path('cart/', cart_view, name='cart'),
     path('wishlist/', wishlist_view, name='wishlist'),

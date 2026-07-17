@@ -132,3 +132,31 @@ def send_seller_alert_email(order):
       </div>
     """
     _send_email(seller_email, f'New order {order.order_id} — {order.payment_method.upper()} — \u20b9{order.total:,.0f}', html)
+
+
+def send_password_reset_email(user, reset_url):
+    """To a customer who requested a password reset (see views.py's
+    forgot_password_view). reset_url already has the uid/token baked in —
+    this function just formats and sends it."""
+    if not user.email:
+        return
+    html = f"""
+      <div style="font-family:sans-serif; max-width:520px; margin:0 auto;">
+        <h2 style="margin-bottom:4px;">Reset your ELEVEN password</h2>
+        <p style="color:#555;">
+          We got a request to reset the password for this account. Click
+          below to choose a new one — this link works for a limited time
+          and can only be used once.
+        </p>
+        <p style="margin:24px 0;">
+          <a href="{reset_url}" style="background:#111; color:#fff; padding:12px 20px;
+             text-decoration:none; display:inline-block;">Reset password</a>
+        </p>
+        <p style="color:#888; font-size:12px;">
+          Didn't request this? You can safely ignore this email — your
+          password won't change unless you click the link above and set a
+          new one.
+        </p>
+      </div>
+    """
+    _send_email(user.email, 'Reset your ELEVEN password', html)

@@ -60,6 +60,22 @@ class CustomerSerializer(serializers.Serializer):
     phone = serializers.CharField()
 
 
+class ForgotPasswordSerializer(serializers.Serializer):
+    """What the frontend POSTs to /api/auth/forgot-password/. Deliberately
+    has no validate_email existence check — the view always responds with
+    the same generic message either way, so a wrong/unregistered email
+    can't be used to fish for which addresses have accounts."""
+    email = serializers.EmailField()
+
+
+class ResetPasswordSerializer(serializers.Serializer):
+    """What the frontend POSTs to /api/auth/reset-password/ — the uid/token
+    pair from the emailed link, plus the new password."""
+    uid = serializers.CharField()
+    token = serializers.CharField()
+    new_password = serializers.CharField(write_only=True, validators=[validate_password])
+
+
 class ProductImageSerializer(serializers.ModelSerializer):
     class Meta:
         model = ProductImage
