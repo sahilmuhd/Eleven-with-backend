@@ -51,7 +51,7 @@ export default function Login() {
         </button>
       </form>
       <p className="text-xs text-steel-dim mt-6 text-center">
-        New to ELEVEN? <Link to="/register" className="text-blue no-underline">Create an account</Link>
+        New to ELEVEN? <Link to="/register" state={location.state} className="text-blue no-underline">Create an account</Link>
       </p>
     </div>
   )

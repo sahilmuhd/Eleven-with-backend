@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useShop } from '../context/ShopContext'
 
@@ -7,6 +7,7 @@ export default function Register() {
   const { register } = useAuth()
   const { mergeGuestCartIntoServer } = useShop()
   const navigate = useNavigate()
+  const location = useLocation()
   const [fields, setFields] = useState({ name: '', email: '', phone: '', password: '' })
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
@@ -20,7 +21,7 @@ export default function Register() {
     try {
       await register(fields)
       await mergeGuestCartIntoServer()
-      navigate('/account')
+      navigate(location.state?.from || '/account')
     } catch (err) {
       setError(err.message || 'Could not create account.')
     } finally {
@@ -56,7 +57,7 @@ export default function Register() {
         </button>
       </form>
       <p className="text-xs text-steel-dim mt-6 text-center">
-        Already have an account? <Link to="/login" className="text-blue no-underline">Log in</Link>
+        Already have an account? <Link to="/login" state={location.state} className="text-blue no-underline">Log in</Link>
       </p>
     </div>
   )
