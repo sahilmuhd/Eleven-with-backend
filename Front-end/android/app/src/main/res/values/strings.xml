@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">ELEVEN</string>
+    <string name="title_activity_main">ELEVEN</string>
+    <string name="package_name">com.elevenbrand.app</string>
+    <string name="custom_url_scheme">com.elevenbrand.app</string>
+</resources>

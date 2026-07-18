@@ -1,0 +1,8 @@
+{
+  "appId": "com.elevenbrand.app",
+  "appName": "ELEVEN",
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "https"
+  }
+}
