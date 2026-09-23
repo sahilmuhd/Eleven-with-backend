@@ -1,10 +1,11 @@
 import { useNavigate } from 'react-router-dom'
 import { useShop } from '../context/ShopContext'
 import { fmtPrice } from '../lib/api'
+import { buildWhatsAppLink } from '../lib/whatsapp'
 
 export default function ProductCard({ p }) {
   const navigate = useNavigate()
-  const { isWished, toggleWish, addToCart, showToast } = useShop()
+  const { isWished, toggleWish, showToast } = useShop()
   const wished = isWished(p.sku)
   const img = (p.images && p.images[0]) || ''
 
@@ -14,17 +15,11 @@ export default function ProductCard({ p }) {
     showToast(nowWished ? 'Added to wishlist' : 'Removed from wishlist')
   }
 
-  const handleQuickAdd = (e) => {
+  const handleQuickBuy = (e) => {
     e.stopPropagation()
-    addToCart({
-      sku: p.sku,
-      name: p.name,
-      size: 'UK ' + ((p.sizes && p.sizes[0]) || 8),
-      color: p.colorway || 'Charcoal',
-      price: p.price,
-      image: img,
-    })
-    showToast(p.name + ' added to cart')
+    const firstSize = (p.sizes && p.sizes[0]) ? 'UK ' + p.sizes[0] : undefined
+    const link = buildWhatsAppLink(p, { size: firstSize, color: p.colorway })
+    window.open(link, '_blank', 'noopener,noreferrer')
   }
 
   return (
@@ -64,10 +59,10 @@ export default function ProductCard({ p }) {
         <div className="flex items-center justify-between">
           <span className="font-mono text-sm">{fmtPrice(p.price)}</span>
           <button
-            onClick={handleQuickAdd}
+            onClick={handleQuickBuy}
             className="text-[11px] uppercase tracking-wide font-semibold border border-steel/40 px-3 py-1.5 hover:border-chalk transition"
           >
-            Add
+            WhatsApp
           </button>
         </div>
       </div>

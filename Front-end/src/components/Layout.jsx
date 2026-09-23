@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { Link, NavLink, Outlet } from 'react-router-dom'
 import { useShop } from '../context/ShopContext'
-import { useAuth } from '../context/AuthContext'
 
 const NAV_LINKS = [
   { to: '/', label: 'Home' },
@@ -9,7 +8,6 @@ const NAV_LINKS = [
   { to: '/new-arrivals', label: 'New Arrivals' },
   { to: '/shop', label: 'Shop' },
   { to: '/contact', label: 'Contact' },
-  { to: '/track', label: 'Track Order' },
 ]
 
 function Icon({ path, ...props }) {
@@ -22,8 +20,7 @@ function Icon({ path, ...props }) {
 
 export default function Layout() {
   const [menuOpen, setMenuOpen] = useState(false)
-  const { cartCount, toast } = useShop()
-  const { user } = useAuth()
+  const { toast } = useShop()
 
   const closeMenu = () => setMenuOpen(false)
 
@@ -51,24 +48,8 @@ export default function Layout() {
           <Link to="/search" aria-label="Search" className="text-chalk p-1">
             <Icon path={<><circle cx="11" cy="11" r="7" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></>} />
           </Link>
-          {user && (
-            <Link to="/wishlist" aria-label="Wishlist" className="text-chalk p-1">
-              <Icon path={<path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />} />
-            </Link>
-          )}
-          {user && (
-            <Link to="/cart" aria-label="Cart" className="relative text-chalk p-1">
-              <Icon path={<><circle cx="9" cy="21" r="1" /><circle cx="20" cy="21" r="1" /><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" /></>} />
-              {cartCount > 0 && (
-                <span className="absolute -top-1 -right-1 bg-blue text-chalk text-[9px] w-4 h-4 rounded-full flex items-center justify-center font-bold">
-                  {cartCount}
-                </span>
-              )}
-            </Link>
-          )}
-          <Link to={user ? '/account' : '/login'} aria-label="Account" className="text-chalk no-underline p-1 inline-flex items-center gap-1.5">
-            <Icon path={<><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></>} />
-            <span className="text-xs whitespace-nowrap">{user ? `Hi, ${user.name.split(' ')[0]}` : 'Account'}</span>
+          <Link to="/wishlist" aria-label="Wishlist" className="text-chalk p-1">
+            <Icon path={<path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />} />
           </Link>
         </div>
 
@@ -88,9 +69,7 @@ export default function Layout() {
           {[
             ...NAV_LINKS,
             { to: '/search', label: 'Search' },
-            ...(user ? [{ to: '/wishlist', label: 'Wishlist' }] : []),
-            ...(user ? [{ to: '/cart', label: cartCount > 0 ? `Cart (${cartCount})` : 'Cart' }] : []),
-            { to: user ? '/account' : '/login', label: user ? `Hi, ${user.name.split(' ')[0]}` : 'Account' },
+            { to: '/wishlist', label: 'Wishlist' },
           ].map((l) => (
             <NavLink
               key={l.to + l.label}
@@ -128,7 +107,6 @@ export default function Layout() {
             <h5 className="text-xs tracking-wide uppercase text-steel-dim mb-4">Support</h5>
             <Link to="/contact" className="block text-chalk no-underline text-sm mb-2.5 opacity-85 hover:opacity-100 hover:text-blue">Shipping policy</Link>
             <Link to="/contact" className="block text-chalk no-underline text-sm mb-2.5 opacity-85 hover:opacity-100 hover:text-blue">Return policy</Link>
-            <Link to="/track" className="block text-chalk no-underline text-sm mb-2.5 opacity-85 hover:opacity-100 hover:text-blue">Order tracking</Link>
             <Link to="/contact" className="block text-chalk no-underline text-sm mb-2.5 opacity-85 hover:opacity-100 hover:text-blue">FAQ</Link>
             <Link to="/contact" className="block text-chalk no-underline text-sm mb-2.5 opacity-85 hover:opacity-100 hover:text-blue">Contact</Link>
           </div>
